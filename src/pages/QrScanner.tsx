@@ -198,7 +198,7 @@ export default function QRScanner() {
      RESULT STATES
   ======================================================= */
 
-  const [result, setResult] = useState<
+  const [, setResult] = useState<
     "PASS" | "FAIL" | "VALID" | "INVALID" | null
   >(null);
 

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Activity,
@@ -213,9 +212,6 @@ export default function AdvancedAnalytics() {
   const [instrumentDetails, setInstrumentDetails] =
     useState<InstrumentDetails | null>(null);
 
-  const [inspectionId, setInspectionId] =
-    useState<number | null>(null);
-
   const [latestInspection, setLatestInspection] =
     useState<Inspection | null>(null);
 
@@ -295,7 +291,6 @@ export default function AdvancedAnalytics() {
         );
 
       if (completedInspections.length === 0) {
-        setInspectionId(null);
         setLatestInspection(null);
         setWeighingPerformance(null);
         setRepeatabilityRuns([]);
@@ -329,10 +324,6 @@ export default function AdvancedAnalytics() {
 
       setLatestInspection(
         selectedInspection
-      );
-
-      setInspectionId(
-        selectedInspectionId
       );
 
       // ------------------------------------------------
@@ -588,7 +579,6 @@ export default function AdvancedAnalytics() {
 
       setData(null);
       setInstrumentDetails(null);
-      setInspectionId(null);
       setLatestInspection(null);
       setWeighingPerformance(null);
       setRepeatabilityRuns([]);

@@ -1566,13 +1566,6 @@ return result.sort(
 const [selectedInspectionId, setSelectedInspectionId] =
   useState<number | "">("");
 
-const getResultClass = (value?: string | null) => {
-  const normalized = String(value ?? "").toUpperCase();
-
-  if (normalized === "PASS") return "text-green-600";
-  if (normalized === "FAIL") return "text-red-600";
-  return "text-gray-900";
-};
 
 const currentInspection =
   useMemo(() => {
@@ -2330,9 +2323,6 @@ const currentInspection =
     },
   ];
 
-  /* ======================================================== */
-  const latestInspectionResult =
-    currentInspection?.inspection?.overallResult ?? null;
 
   /* LOADING */
   /* ======================================================== */

@@ -60,16 +60,6 @@ interface EccentricityRecord {
   result?: string;
 }
 
-interface EnvironmentData {
-  location: string;
-  latitude: number | null;
-  longitude: number | null;
-  temperature: number | null;
-  humidity: number | null;
-  vibration: number;
-  source: string;
-  status: string;
-}
 
 interface WeatherResponse {
   current?: {

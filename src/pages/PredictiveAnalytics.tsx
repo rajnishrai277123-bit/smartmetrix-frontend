@@ -1,6 +1,6 @@
 import { useState } from "react";
+
 import {
-  Activity,
   AlertCircle,
   AlertTriangle,
   BrainCircuit,
@@ -11,7 +11,6 @@ import {
   ShieldAlert,
   TrendingUp,
 } from "lucide-react";
-
 import api from "../services/api";
 
 type DriftData = {

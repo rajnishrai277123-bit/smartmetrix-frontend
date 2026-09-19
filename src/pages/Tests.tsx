@@ -192,12 +192,6 @@ function getStatusClass(status: string) {
 function isInspectionLocked(status?: string) {
   return !!status && status !== "IN_PROGRESS";
 }
-
-function formatWeight(value: number | string | null | undefined, digits = 3) {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue.toFixed(digits) : "—";
-}
-
 function getInspectionCompletionTime(inspection?: Inspection | null) {
   if (!inspection) return null;
 
@@ -229,44 +223,7 @@ function formatDateTime(createdAt?: string | null) {
   });
 }
 
-const getOimlExplanation = (
-  error: number,
-  mpe: number,
-  result: string
-) => {
-  const numericError = Number(error);
-  const numericMpe = Number(mpe);
-  const absoluteError = Math.abs(numericError);
 
-  if (result === "PASS") {
-    return {
-      title: "Within applicable MPE",
-      message: `Absolute error (${absoluteError.toFixed(5)} kg) is within the applicable maximum permissible error (${numericMpe.toFixed(5)} kg).`,
-      className:
-        "border-emerald-200 bg-emerald-50 text-emerald-700",
-      icon: CheckCircle2,
-    };
-  }
-
-  if (result === "FAIL") {
-    return {
-      title: "Exceeds applicable MPE",
-      message: `Absolute error (${absoluteError.toFixed(5)} kg) exceeds the applicable maximum permissible error (${numericMpe.toFixed(5)} kg).`,
-      className:
-        "border-red-200 bg-red-50 text-red-700",
-      icon: XCircle,
-    };
-  }
-
-  return {
-    title: "Result pending",
-    message:
-      "The compliance result has not been determined yet.",
-    className:
-      "border-slate-200 bg-slate-50 text-slate-600",
-    icon: Info,
-  };
-};
 
 function FormInput({
   label,

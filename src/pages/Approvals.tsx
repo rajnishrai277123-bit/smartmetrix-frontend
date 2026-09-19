@@ -34,14 +34,6 @@ interface Instrument {
   status: string;
 }
 
-interface Approval {
-  id: number;
-  inspectionId: number;
-  userId: number;
-  action: string;
-  remarks?: string | null;
-  timestamp?: string | null;
-}
 
 function Approvals() {
   const [inspections, setInspections] = useState<Inspection[]>([]);
