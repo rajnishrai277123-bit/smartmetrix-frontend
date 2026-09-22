@@ -2767,7 +2767,13 @@ function Login() {
           "granted"
         );
 
-        navigate("/", {
+        const postLoginPath =
+          userRole === "SENIOR_OFFICER" ||
+          userRole === "CONTROLLER"
+            ? "/approvals"
+            : "/";
+
+        navigate(postLoginPath, {
           replace: true,
         });
 
@@ -3290,7 +3296,14 @@ function AppRoutes() {
               />
             ) : (
               <Navigate
-                to="/"
+                to={
+                  normalizeRole(user.role) ===
+                    "SENIOR_OFFICER" ||
+                  normalizeRole(user.role) ===
+                    "CONTROLLER"
+                    ? "/approvals"
+                    : "/"
+                }
                 replace
               />
             )

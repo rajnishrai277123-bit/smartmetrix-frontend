@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   CheckCircle2,
@@ -36,6 +37,8 @@ interface Instrument {
 
 
 function Approvals() {
+  const navigate = useNavigate();
+
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,13 +189,11 @@ function Approvals() {
    * from appearing in the Controller Approval Queue.
    */
   const displayedInspections =
-    role === "CONTROLLER"
-      ? inspections.filter(
-          (inspection) =>
-            inspection.status?.toUpperCase() === "APPROVED" &&
-            inspection.overallResult?.toUpperCase() === "PASS"
-        )
-      : inspections;
+    role === "SENIOR_OFFICER"
+      ? seniorPending
+      : role === "CONTROLLER"
+      ? controllerPending
+      : [];
 
   const approveAsSenior = async (inspection: Inspection) => {
     try {
@@ -205,7 +206,7 @@ function Approvals() {
       );
 
       setMessage(
-        `Inspection #${inspection.id} approved successfully by Senior Officer.`
+        `Inspection #${inspection.id} approved by Senior Officer. It is now pending Controller approval.`
       );
 
       setSelectedInspection(null);
@@ -237,13 +238,19 @@ function Approvals() {
       );
 
       setMessage(
-        `Inspection #${inspection.id} received final controller approval.`
+        `Inspection #${inspection.id} received final Controller approval. Opening Certificate Verification...`
       );
 
       setSelectedInspection(null);
       setRemarks("");
 
       await loadData();
+
+      navigate("/certificates", {
+        state: {
+          inspectionId: inspection.id,
+        },
+      });
     } catch (err: any) {
       console.error("Controller approval failed", err);
 
@@ -445,9 +452,11 @@ function Approvals() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                {role === "CONTROLLER"
-                  ? "Senior-approved PASS inspections awaiting final controller approval."
-                  : "Inspections moving through the approval workflow."}
+                {role === "SENIOR_OFFICER"
+                  ? "PASS inspections submitted and awaiting Senior Officer approval."
+                  : role === "CONTROLLER"
+                  ? "Senior-approved PASS inspections awaiting final Controller approval."
+                  : "Only approval-eligible inspections are shown for the current role."}
               </p>
             </div>
           </div>
