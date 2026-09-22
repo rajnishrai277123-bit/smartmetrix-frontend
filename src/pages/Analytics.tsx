@@ -1557,7 +1557,38 @@ return result.sort(
     }, [
       repeatabilityRecords,
       repeatabilitySummary,
-    ]); 
+    ]);  
+
+
+/* ======================================================== */
+/* COMBINED TEST METRICS */
+/* ======================================================== */
+
+const combinedTestMetrics = useMemo(() => {
+  const weighingPerformanceCount = tests.length;
+
+  const repeatabilityCount =
+    repeatabilitySummary.length;
+
+  const eccentricityCount =
+    eccentricitySummary.length;
+
+  const totalTests =
+    weighingPerformanceCount +
+    repeatabilityCount +
+    eccentricityCount;
+
+  return {
+    weighingPerformanceCount,
+    repeatabilityCount,
+    eccentricityCount,
+    totalTests,
+  };
+}, [
+  tests,
+  repeatabilitySummary,
+  eccentricitySummary,
+]);
 
     /* ======================================================== */
 /* CURRENT INSPECTION ANALYSIS */
@@ -2577,15 +2608,11 @@ const currentInspection =
           positive
         />
 
-        <MetricCard
-          title="Total Tests"
-          value={
-            analytics.totalTestRecords
-          }
-          icon={
-            <Gauge size={22} />
-          }
-        />
+       <MetricCard
+  title="Total Tests"
+  value={combinedTestMetrics.totalTests}
+  icon={<Gauge size={22} />}
+/>
 
         <MetricCard
           title="Test Pass Rate"
@@ -2632,18 +2659,12 @@ const currentInspection =
           danger
         />
 
-        <InsightCard
-          title="Historical Measurements"
-          value={
-            tests.length
-          }
-          subtitle="Available records for analysis"
-          icon={
-            <BarChart3
-              size={20}
-            />
-          }
-        />
+      <InsightCard
+  title="Historical Measurements"
+  value={combinedTestMetrics.totalTests}
+  subtitle="WP, Repeatability and Eccentricity test executions"
+  icon={<BarChart3 size={20} />}
+/>
       </div>
 
       {/* ==================================================== */}

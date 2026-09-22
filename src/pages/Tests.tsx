@@ -17,6 +17,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { useLocation, useNavigate } from "react-router-dom";
+
 import api from "../services/api";
 import {
   getOfflineTests,
@@ -192,6 +194,7 @@ function getStatusClass(status: string) {
 function isInspectionLocked(status?: string) {
   return !!status && status !== "IN_PROGRESS";
 }
+
 function getInspectionCompletionTime(inspection?: Inspection | null) {
   if (!inspection) return null;
 
@@ -222,8 +225,6 @@ function formatDateTime(createdAt?: string | null) {
     second: "2-digit",
   });
 }
-
-
 
 function FormInput({
   label,
@@ -651,13 +652,42 @@ function StepCard({
 }
 
 export default function Tests() {
-  const [inspections, setInspections] = useState<Inspection[]>([]);
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [testRecords, setTestRecords] = useState<TestRecord[]>([]);
+  /*
+   * =========================================================
+   * ROUTER STATE
+   * =========================================================
+   *
+   * When Inspections page creates a new inspection,
+   * it navigates to /tests with:
+   *
+   * state: { inspectionId }
+   *
+   * We read that ID here and automatically select
+   * the newly created inspection.
+   */
+  const navigate = useNavigate();
+  const routerLocation = useLocation();
+
+  const incomingInspectionId =
+    routerLocation.state?.inspectionId as
+      | number
+      | undefined;
+
+  const [inspections, setInspections] =
+    useState<Inspection[]>([]);
+
+  const [instruments, setInstruments] =
+    useState<Instrument[]>([]);
+
+  const [testRecords, setTestRecords] =
+    useState<TestRecord[]>([]);
+
   const [repeatabilityRecords, setRepeatabilityRecords] =
     useState<RepeatabilityRecord[]>([]);
+
   const [eccentricityRecords, setEccentricityRecords] =
     useState<EccentricityRecord[]>([]);
+
   const [offlineTests, setOfflineTests] =
     useState<OfflineTestRecord[]>([]);
 
@@ -671,9 +701,12 @@ export default function Tests() {
     useState<string>("");
 
   const [testType, setTestType] =
-    useState<TestType>("WEIGHING_PERFORMANCE");
+    useState<TestType>(
+      "WEIGHING_PERFORMANCE"
+    );
 
-  const [referenceWeight, setReferenceWeight] = useState("");
+  const [referenceWeight, setReferenceWeight] =
+    useState("");
 
   const [observedWeight, setObservedWeight] =
     useState("");
@@ -704,12 +737,20 @@ export default function Tests() {
       }))
     );
 
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
-  const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [workflowLoading, setWorkflowLoading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   const selectedInspection = useMemo(() => {
     if (!selectedInspectionId) {
@@ -719,10 +760,14 @@ export default function Tests() {
     return (
       inspections.find(
         (inspection) =>
-          inspection.id === Number(selectedInspectionId)
+          inspection.id ===
+          Number(selectedInspectionId)
       ) ?? null
     );
-  }, [inspections, selectedInspectionId]);
+  }, [
+    inspections,
+    selectedInspectionId,
+  ]);
 
   const selectedInstrument = useMemo(() => {
     if (!selectedInspection) {
@@ -732,10 +777,14 @@ export default function Tests() {
     return (
       instruments.find(
         (instrument) =>
-          instrument.id === selectedInspection.instrumentId
+          instrument.id ===
+          selectedInspection.instrumentId
       ) ?? null
     );
-  }, [selectedInspection, instruments]);
+  }, [
+    selectedInspection,
+    instruments,
+  ]);
 
   const inspectionTests = useMemo(() => {
     if (!selectedInspection) {
@@ -744,10 +793,15 @@ export default function Tests() {
 
     return testRecords.filter(
       (record) =>
-        record.inspectionId === selectedInspection.id &&
-        record.testType === "WEIGHING_PERFORMANCE"
+        record.inspectionId ===
+          selectedInspection.id &&
+        record.testType ===
+          "WEIGHING_PERFORMANCE"
     );
-  }, [testRecords, selectedInspection]);
+  }, [
+    testRecords,
+    selectedInspection,
+  ]);
 
   const inspectionRepeatability = useMemo(() => {
     if (!selectedInspection) {
@@ -756,9 +810,13 @@ export default function Tests() {
 
     return repeatabilityRecords.filter(
       (record) =>
-        record.inspectionId === selectedInspection.id
+        record.inspectionId ===
+        selectedInspection.id
     );
-  }, [repeatabilityRecords, selectedInspection]);
+  }, [
+    repeatabilityRecords,
+    selectedInspection,
+  ]);
 
   const inspectionEccentricity = useMemo(() => {
     if (!selectedInspection) {
@@ -767,40 +825,64 @@ export default function Tests() {
 
     return eccentricityRecords.filter(
       (record) =>
-        record.inspectionId === selectedInspection.id
+        record.inspectionId ===
+        selectedInspection.id
     );
-  }, [eccentricityRecords, selectedInspection]);
+  }, [
+    eccentricityRecords,
+    selectedInspection,
+  ]);
 
   const latestWeighingRecord = useMemo(() => {
     if (inspectionTests.length === 0) {
       return null;
     }
 
-    const sorted = [...inspectionTests].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : NaN;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : NaN;
+    const sorted = [...inspectionTests].sort(
+      (a, b) => {
+        const aTime = a.createdAt
+          ? new Date(a.createdAt).getTime()
+          : NaN;
 
-      if (Number.isFinite(aTime) && Number.isFinite(bTime)) {
-        return aTime - bTime;
+        const bTime = b.createdAt
+          ? new Date(b.createdAt).getTime()
+          : NaN;
+
+        if (
+          Number.isFinite(aTime) &&
+          Number.isFinite(bTime)
+        ) {
+          return aTime - bTime;
+        }
+
+        return a.id - b.id;
       }
+    );
 
-      return a.id - b.id;
-    });
-
-    return sorted.length > 0 ? sorted[sorted.length - 1] : null;
+    return sorted.length > 0
+      ? sorted[sorted.length - 1]
+      : null;
   }, [inspectionTests]);
 
   const existingReferenceWeight = useMemo(() => {
     if (latestWeighingRecord) {
-      return Number(latestWeighingRecord.referenceWeight);
+      return Number(
+        latestWeighingRecord.referenceWeight
+      );
     }
 
     if (inspectionRepeatability.length > 0) {
-      return Number(inspectionRepeatability[0].referenceWeight);
+      return Number(
+        inspectionRepeatability[0]
+          .referenceWeight
+      );
     }
 
     if (inspectionEccentricity.length > 0) {
-      return Number(inspectionEccentricity[0].referenceWeight);
+      return Number(
+        inspectionEccentricity[0]
+          .referenceWeight
+      );
     }
 
     return null;
@@ -810,7 +892,10 @@ export default function Tests() {
     inspectionEccentricity,
   ]);
 
-  const inspectionLocked = isInspectionLocked(selectedInspection?.status);
+  const inspectionLocked =
+    isInspectionLocked(
+      selectedInspection?.status
+    );
 
   /*
    * =========================================================
@@ -826,78 +911,129 @@ export default function Tests() {
     const onlineComplete =
       inspectionTests.length > 0;
 
-    const offlineComplete = offlineTests.some(
-      (test) =>
-        Number(test.inspectionId) ===
-          selectedInspection.id &&
-        test.testType === "WEIGHING_PERFORMANCE"
-    );
+    const offlineComplete =
+      offlineTests.some(
+        (test) =>
+          Number(test.inspectionId) ===
+            selectedInspection.id &&
+          test.testType ===
+            "WEIGHING_PERFORMANCE"
+      );
 
-    return onlineComplete || offlineComplete;
+    return (
+      onlineComplete ||
+      offlineComplete
+    );
   }, [
     selectedInspection,
     inspectionTests,
     offlineTests,
   ]);
 
-  const latestRepeatabilityRunId = useMemo(() => {
-    const runIds = inspectionRepeatability
-      .map((record) => record.testRunId)
-      .filter((id): id is number => id !== null && id !== undefined);
+  const latestRepeatabilityRunId =
+    useMemo(() => {
+      const runIds =
+        inspectionRepeatability
+          .map(
+            (record) =>
+              record.testRunId
+          )
+          .filter(
+            (id): id is number =>
+              id !== null &&
+              id !== undefined
+          );
 
-    return runIds.length > 0 ? Math.max(...runIds) : null;
-  }, [inspectionRepeatability]);
+      return runIds.length > 0
+        ? Math.max(...runIds)
+        : null;
+    }, [inspectionRepeatability]);
 
-  const latestRepeatabilityRecords = useMemo(() => {
-    if (latestRepeatabilityRunId === null) {
-      return [];
-    }
+  const latestRepeatabilityRecords =
+    useMemo(() => {
+      if (!selectedInspection) {
+        return [];
+      }
 
-    return inspectionRepeatability.filter(
-      (record) => Number(record.testRunId) === latestRepeatabilityRunId
-    );
-  }, [inspectionRepeatability, latestRepeatabilityRunId]);
+      // Prefer the newest backend testRunId. This is the normal path.
+      if (latestRepeatabilityRunId !== null) {
+        return inspectionRepeatability
+          .filter(
+            (record) =>
+              Number(record.testRunId) ===
+              latestRepeatabilityRunId
+          )
+          .sort(
+            (a, b) =>
+              Number(a.readingNumber) -
+              Number(b.readingNumber)
+          );
+      }
 
-  const repeatabilityComplete = useMemo(() => {
-    if (!selectedInspection || latestRepeatabilityRunId === null) {
-      return false;
-    }
+      // Fallback for older records where testRunId was not stored.
+      // Pick the latest record for each reading number.
+      const latestByReading = new Map<number, RepeatabilityRecord>();
 
-    const uniqueReadings = new Set(
-      latestRepeatabilityRecords
-        .filter(
+      [...inspectionRepeatability]
+        .sort((a, b) => Number(a.id) - Number(b.id))
+        .forEach((record) => {
+          if (record.readingNumber >= 1 && record.readingNumber <= 5) {
+            latestByReading.set(record.readingNumber, record);
+          }
+        });
+
+      return Array.from(latestByReading.values()).sort(
+        (a, b) => Number(a.readingNumber) - Number(b.readingNumber)
+      );
+    }, [
+      selectedInspection,
+      inspectionRepeatability,
+      latestRepeatabilityRunId,
+    ]);
+
+  const repeatabilityComplete =
+    useMemo(() => {
+      if (!selectedInspection) {
+        return false;
+      }
+
+      const uniqueReadings = new Set(
+        latestRepeatabilityRecords
+          .filter(
+            (record) =>
+              record.readingNumber >= 1 &&
+              record.readingNumber <= 5
+          )
+          .map((record) => record.readingNumber)
+      );
+
+      return uniqueReadings.size === 5;
+    }, [
+      selectedInspection,
+      latestRepeatabilityRecords,
+    ]);
+
+  const eccentricityComplete =
+    useMemo(() => {
+      if (!selectedInspection) {
+        return false;
+      }
+
+      const positions = new Set(
+        inspectionEccentricity.map(
           (record) =>
-            record.readingNumber >= 1 &&
-            record.readingNumber <= 5
+            record.position.toUpperCase()
         )
-        .map((record) => record.readingNumber)
-    );
+      );
 
-    return uniqueReadings.size === 5;
-  }, [
-    selectedInspection,
-    latestRepeatabilityRunId,
-    latestRepeatabilityRecords,
-  ]);
-
-  const eccentricityComplete = useMemo(() => {
-    if (!selectedInspection) {
-      return false;
-    }
-
-    const positions = new Set(
-      inspectionEccentricity.map((record) =>
-        record.position.toUpperCase()
-      )
-    );
-
-    return eccentricityPositions.every(
-      (position) => positions.has(position)
-    );
-  }, [
-    selectedInspection,
-    inspectionEccentricity,
-  ]);
+      return eccentricityPositions.every(
+        (position) =>
+          positions.has(position)
+      );
+    }, [
+      selectedInspection,
+      inspectionEccentricity,
+    ]);
 
   /*
    * =========================================================
@@ -906,30 +1042,82 @@ export default function Tests() {
    */
 
   const weighingResult = useMemo(() => {
-    return latestWeighingRecord?.result ?? "PENDING";
+    return (
+      latestWeighingRecord?.result ??
+      "PENDING"
+    );
   }, [latestWeighingRecord]);
 
-  const repeatabilityResult = useMemo(() => {
-    if (!repeatabilityComplete) {
-      return "PENDING";
-    }
+  const repeatabilityResult =
+    useMemo(() => {
+      if (!repeatabilityComplete) {
+        return "PENDING";
+      }
 
-    return repeatabilitySummary?.result ?? "PENDING";
-  }, [
-    repeatabilityComplete,
-    repeatabilitySummary,
-  ]);
+      if (repeatabilitySummary?.result) {
+        return repeatabilitySummary.result;
+      }
 
-  const eccentricityResult = useMemo(() => {
-    if (!eccentricityComplete) {
-      return "PENDING";
-    }
+      // Fallback so a completed 5-reading run is not shown as PENDING
+      // when the summary endpoint is unavailable or an older record has no testRunId.
+      const values = latestRepeatabilityRecords.map((record) =>
+        Number(record.observedWeight)
+      );
 
-    return eccentricitySummary?.result ?? "PENDING";
-  }, [
-    eccentricityComplete,
-    eccentricitySummary,
-  ]);
+      if (values.length !== 5 || values.some((value) => Number.isNaN(value))) {
+        return "PENDING";
+      }
+
+      const range = Math.max(...values) - Math.min(...values);
+      const mpe = Number(latestWeighingRecord?.mpe);
+
+      if (!Number.isFinite(mpe)) {
+        return "PENDING";
+      }
+
+      return Math.abs(range) <= Math.abs(mpe) ? "PASS" : "FAIL";
+    }, [
+      repeatabilityComplete,
+      repeatabilitySummary,
+      latestRepeatabilityRecords,
+      latestWeighingRecord,
+    ]);
+
+  const eccentricityResult =
+    useMemo(() => {
+      if (!eccentricityComplete) {
+        return "PENDING";
+      }
+
+      if (eccentricitySummary?.result) {
+        return eccentricitySummary.result;
+      }
+
+      // Fallback for completed eccentricity data when the summary call has not returned.
+      const maximumDifference = inspectionEccentricity.reduce(
+        (maximum, record) => {
+          const difference = Math.abs(
+            Number(record.observedWeight) -
+              Number(record.referenceWeight)
+          );
+          return Math.max(maximum, difference);
+        },
+        0
+      );
+
+      const mpe = Number(latestWeighingRecord?.mpe);
+
+      if (!Number.isFinite(mpe)) {
+        return "PENDING";
+      }
+
+      return maximumDifference <= Math.abs(mpe) ? "PASS" : "FAIL";
+    }, [
+      eccentricityComplete,
+      eccentricitySummary,
+      inspectionEccentricity,
+      latestWeighingRecord,
+    ]);
 
   const allTestsComplete =
     weighingComplete &&
@@ -948,7 +1136,11 @@ export default function Tests() {
       return "PENDING";
     }
 
-    if (selectedInspection.overallResult && selectedInspection.overallResult !== "PENDING") {
+    if (
+      selectedInspection.overallResult &&
+      selectedInspection.overallResult !==
+        "PENDING"
+    ) {
       return selectedInspection.overallResult;
     }
 
@@ -990,22 +1182,30 @@ export default function Tests() {
     }
 
     if (inspectionLocked) {
-      setTestType("WEIGHING_PERFORMANCE");
+      setTestType(
+        "WEIGHING_PERFORMANCE"
+      );
       return;
     }
 
     if (!weighingComplete) {
-      setTestType("WEIGHING_PERFORMANCE");
+      setTestType(
+        "WEIGHING_PERFORMANCE"
+      );
       return;
     }
 
     if (!repeatabilityComplete) {
-      setTestType("REPEATABILITY");
+      setTestType(
+        "REPEATABILITY"
+      );
       return;
     }
 
     if (!eccentricityComplete) {
-      setTestType("ECCENTRICITY");
+      setTestType(
+        "ECCENTRICITY"
+      );
     }
   }, [
     selectedInspection,
@@ -1021,132 +1221,169 @@ export default function Tests() {
    * =========================================================
    */
 
-  const repeatabilityAverage = useMemo(() => {
-    if (repeatabilitySummary) {
+  const repeatabilityAverage =
+    useMemo(() => {
+      if (repeatabilitySummary) {
+        return Number(
+          repeatabilitySummary.average
+        );
+      }
+
+      if (
+        latestRepeatabilityRecords.length ===
+        0
+      ) {
+        return 0;
+      }
+
+      const total =
+        latestRepeatabilityRecords.reduce(
+          (sum, record) =>
+            sum +
+            Number(
+              record.observedWeight
+            ),
+          0
+        );
+
       return Number(
-        repeatabilitySummary.average
+        (
+          total /
+          latestRepeatabilityRecords.length
+        ).toFixed(3)
       );
-    }
+    }, [
+      repeatabilitySummary,
+      latestRepeatabilityRecords,
+    ]);
 
-    if (latestRepeatabilityRecords.length === 0) {
-      return 0;
-    }
+  const repeatabilityRange =
+    useMemo(() => {
+      if (repeatabilitySummary) {
+        return Number(
+          repeatabilitySummary.range
+        );
+      }
 
-    const total = latestRepeatabilityRecords.reduce(
-      (sum, record) =>
-        sum + Number(record.observedWeight),
-      0
-    );
+      if (
+        latestRepeatabilityRecords.length ===
+        0
+      ) {
+        return 0;
+      }
 
-    return Number(
-      (
-        total /
-        latestRepeatabilityRecords.length
-      ).toFixed(3)
-    );
-  }, [
-    repeatabilitySummary,
-    latestRepeatabilityRecords,
-  ]);
+      const values =
+        latestRepeatabilityRecords.map(
+          (record) =>
+            Number(
+              record.observedWeight
+            )
+        );
 
-  const repeatabilityRange = useMemo(() => {
-    if (repeatabilitySummary) {
       return Number(
-        repeatabilitySummary.range
+        (
+          Math.max(...values) -
+          Math.min(...values)
+        ).toFixed(3)
       );
-    }
+    }, [
+      repeatabilitySummary,
+      latestRepeatabilityRecords,
+    ]);
 
-    if (latestRepeatabilityRecords.length === 0) {
-      return 0;
-    }
+  const eccentricityMaximumDifference =
+    useMemo(() => {
+      if (eccentricitySummary) {
+        return Number(
+          eccentricitySummary.maximumDifference
+        );
+      }
 
-    const values =
-      latestRepeatabilityRecords.map(
-        (record) =>
-          Number(record.observedWeight)
-      );
+      if (
+        inspectionEccentricity.length ===
+        0
+      ) {
+        return 0;
+      }
 
-    return Number(
-      (
-        Math.max(...values) -
-        Math.min(...values)
-      ).toFixed(3)
-    );
-  }, [
-    repeatabilitySummary,
-    latestRepeatabilityRecords,
-  ]);
+      const values =
+        inspectionEccentricity.map(
+          (record) =>
+            Number(
+              record.observedWeight
+            )
+        );
 
-  const eccentricityMaximumDifference = useMemo(() => {
-    if (eccentricitySummary) {
       return Number(
-        eccentricitySummary.maximumDifference
+        (
+          Math.max(...values) -
+          Math.min(...values)
+        ).toFixed(3)
       );
-    }
+    }, [
+      eccentricitySummary,
+      inspectionEccentricity,
+    ]);
 
-    if (inspectionEccentricity.length === 0) {
-      return 0;
-    }
+  const eccentricityReference =
+    useMemo(() => {
+      if (eccentricitySummary) {
+        return Number(
+          eccentricitySummary.referenceWeight
+        );
+      }
 
-    const values =
-      inspectionEccentricity.map(
-        (record) =>
-          Number(record.observedWeight)
-      );
+      if (
+        inspectionEccentricity.length ===
+        0
+      ) {
+        return 0;
+      }
 
-    return Number(
-      (
-        Math.max(...values) -
-        Math.min(...values)
-      ).toFixed(3)
-    );
-  }, [
-    eccentricitySummary,
-    inspectionEccentricity,
-  ]);
-
-  const eccentricityReference = useMemo(() => {
-    if (eccentricitySummary) {
       return Number(
-        eccentricitySummary.referenceWeight
+        inspectionEccentricity[0]
+          .referenceWeight
       );
-    }
+    }, [
+      eccentricitySummary,
+      inspectionEccentricity,
+    ]);
 
-    if (inspectionEccentricity.length === 0) {
-      return 0;
-    }
+  const eccentricityHighest =
+    useMemo(() => {
+      if (
+        inspectionEccentricity.length ===
+        0
+      ) {
+        return null;
+      }
 
-    return Number(
-      inspectionEccentricity[0].referenceWeight
-    );
-  }, [
-    eccentricitySummary,
-    inspectionEccentricity,
-  ]);
+      return [
+        ...inspectionEccentricity,
+      ].sort(
+        (a, b) =>
+          Number(b.observedWeight) -
+          Number(a.observedWeight)
+      )[0];
+    }, [inspectionEccentricity]);
 
-  const eccentricityHighest = useMemo(() => {
-    if (inspectionEccentricity.length === 0) {
-      return null;
-    }
+  const eccentricityLowest =
+    useMemo(() => {
+      if (
+        inspectionEccentricity.length ===
+        0
+      ) {
+        return null;
+      }
 
-    return [...inspectionEccentricity].sort(
-      (a, b) =>
-        Number(b.observedWeight) -
-        Number(a.observedWeight)
-    )[0];
-  }, [inspectionEccentricity]);
-
-  const eccentricityLowest = useMemo(() => {
-    if (inspectionEccentricity.length === 0) {
-      return null;
-    }
-
-    return [...inspectionEccentricity].sort(
-      (a, b) =>
-        Number(a.observedWeight) -
-        Number(b.observedWeight)
-    )[0];
-  }, [inspectionEccentricity]);
+      return [
+        ...inspectionEccentricity,
+      ].sort(
+        (a, b) =>
+          Number(a.observedWeight) -
+          Number(b.observedWeight)
+      )[0];
+    }, [inspectionEccentricity]);
 
   /*
    * =========================================================
@@ -1166,12 +1403,22 @@ export default function Tests() {
         repeatabilityResponse,
         eccentricityResponse,
       ] = await Promise.all([
-        api.get<Inspection[]>("/inspections"),
-        api.get<Instrument[]>("/instruments"),
-        api.get<TestRecord[]>("/test-records"),
+        api.get<Inspection[]>(
+          "/inspections"
+        ),
+
+        api.get<Instrument[]>(
+          "/instruments"
+        ),
+
+        api.get<TestRecord[]>(
+          "/test-records"
+        ),
+
         api.get<RepeatabilityRecord[]>(
           "/repeatability"
         ),
+
         api.get<EccentricityRecord[]>(
           "/eccentricity"
         ),
@@ -1201,7 +1448,9 @@ export default function Tests() {
         const offline =
           await getOfflineTests();
 
-        setOfflineTests(offline);
+        setOfflineTests(
+          offline
+        );
       } catch (offlineError) {
         console.error(
           "Unable to load offline tests:",
@@ -1225,15 +1474,24 @@ export default function Tests() {
    */
   async function loadInspectionSummaries(
     inspection?: Inspection | null,
-    repeatabilityData = repeatabilityRecords,
-    eccentricityData = eccentricityRecords
+    repeatabilityData =
+      repeatabilityRecords,
+    eccentricityData =
+      eccentricityRecords
   ) {
     const currentInspection =
-      inspection ?? selectedInspection;
+      inspection ??
+      selectedInspection;
 
     if (!currentInspection) {
-      setRepeatabilitySummary(null);
-      setEccentricitySummary(null);
+      setRepeatabilitySummary(
+        null
+      );
+
+      setEccentricitySummary(
+        null
+      );
+
       return;
     }
 
@@ -1250,7 +1508,9 @@ export default function Tests() {
             currentInspection.id
         );
 
-      const latestRun = [...records]
+      const latestRun = [
+        ...records,
+      ]
         .filter(
           (record) =>
             record.testRunId !== null &&
@@ -1272,7 +1532,9 @@ export default function Tests() {
           response.data
         );
       } else {
-        setRepeatabilitySummary(null);
+        setRepeatabilitySummary(
+          null
+        );
       }
     } catch (error) {
       console.error(
@@ -1280,7 +1542,9 @@ export default function Tests() {
         error
       );
 
-      setRepeatabilitySummary(null);
+      setRepeatabilitySummary(
+        null
+      );
     }
 
     /*
@@ -1306,7 +1570,9 @@ export default function Tests() {
           response.data
         );
       } else {
-        setEccentricitySummary(null);
+        setEccentricitySummary(
+          null
+        );
       }
     } catch (error) {
       console.error(
@@ -1314,7 +1580,9 @@ export default function Tests() {
         error
       );
 
-      setEccentricitySummary(null);
+      setEccentricitySummary(
+        null
+      );
     }
   }
 
@@ -1338,10 +1606,15 @@ export default function Tests() {
 
       // The backend returns an array of environment records.
       // Use the latest saved record for this inspection.
-      const environments = response.data || [];
-      const environment = [...environments].sort(
-        (a, b) => Number(b.id) - Number(a.id)
-      )[0];
+      const environments =
+        response.data || [];
+
+      const environment =
+        [...environments].sort(
+          (a, b) =>
+            Number(b.id) -
+            Number(a.id)
+        )[0];
 
       if (!environment) {
         setTemperature("");
@@ -1350,19 +1623,26 @@ export default function Tests() {
       }
 
       setTemperature(
-        environment.temperature !== null &&
-        environment.temperature !== undefined
-          ? String(environment.temperature)
+        environment.temperature !==
+          null &&
+        environment.temperature !==
+          undefined
+          ? String(
+              environment.temperature
+            )
           : ""
       );
 
       setHumidity(
-        environment.humidity !== null &&
-        environment.humidity !== undefined
-          ? String(environment.humidity)
+        environment.humidity !==
+          null &&
+        environment.humidity !==
+          undefined
+          ? String(
+              environment.humidity
+            )
           : ""
       );
-
     } catch (error) {
       console.error(
         "Unable to load inspection environment:",
@@ -1372,6 +1652,7 @@ export default function Tests() {
       // No saved environment record for this inspection.
       setTemperature("");
       setHumidity("");
+
       // Do not change the existing vibration default here.
     }
   }
@@ -1379,6 +1660,81 @@ export default function Tests() {
   useEffect(() => {
     loadData();
   }, []);
+
+  /*
+   * =========================================================
+   * AUTO SELECT NEW INSPECTION
+   * =========================================================
+   *
+   * If Inspections page created a new inspection and
+   * navigated here with:
+   *
+   * state: { inspectionId }
+   *
+   * then automatically select that inspection.
+   */
+  useEffect(() => {
+    if (
+      !incomingInspectionId ||
+      inspections.length === 0
+    ) {
+      return;
+    }
+
+    const incomingInspection =
+      inspections.find(
+        (inspection) =>
+          inspection.id ===
+          incomingInspectionId
+      );
+
+    if (!incomingInspection) {
+      return;
+    }
+
+    setSelectedInspectionId(
+      String(incomingInspection.id)
+    );
+
+    // Clear old input values.
+    setObservedWeight("");
+    setTemperature("");
+    setHumidity("");
+
+    setRepeatabilityReadings(
+      repeatabilityPositions.map(
+        (_, index) => ({
+          readingNumber:
+            index + 1,
+          observedWeight: "",
+        })
+      )
+    );
+
+    setEccentricityReadings(
+      eccentricityPositions.map(
+        (position) => ({
+          position,
+          observedWeight: "",
+        })
+      )
+    );
+
+    setTestType(
+      "WEIGHING_PERFORMANCE"
+    );
+
+    // Clear router state so refresh does not
+    // select the same inspection again.
+    navigate("/tests", {
+      replace: true,
+      state: {},
+    });
+  }, [
+    incomingInspectionId,
+    inspections,
+    navigate,
+  ]);
 
   useEffect(() => {
     if (!selectedInspection) {
@@ -1394,8 +1750,14 @@ export default function Tests() {
 
   useEffect(() => {
     if (!selectedInspection) {
-      setRepeatabilitySummary(null);
-      setEccentricitySummary(null);
+      setRepeatabilitySummary(
+        null
+      );
+
+      setEccentricitySummary(
+        null
+      );
+
       return;
     }
 
@@ -1416,10 +1778,18 @@ export default function Tests() {
     }
 
     if (
-      existingReferenceWeight !== null &&
-      (inspectionLocked || referenceWeight === "")
+      existingReferenceWeight !==
+        null &&
+      (
+        inspectionLocked ||
+        referenceWeight === ""
+      )
     ) {
-      setReferenceWeight(String(existingReferenceWeight));
+      setReferenceWeight(
+        String(
+          existingReferenceWeight
+        )
+      );
     }
   }, [
     selectedInspection,
@@ -1446,25 +1816,44 @@ export default function Tests() {
       inspectionId
     );
 
-    const existingWeighingRecords = testRecords
-      .filter(
+    const existingWeighingRecords =
+      testRecords
+        .filter(
+          (record) =>
+            record.inspectionId ===
+              Number(
+                inspectionId
+              ) &&
+            record.testType ===
+              "WEIGHING_PERFORMANCE"
+        )
+        .sort(
+          (a, b) =>
+            a.id - b.id
+        );
+
+    const existingWeighing =
+      existingWeighingRecords.length >
+      0
+        ? existingWeighingRecords[
+            existingWeighingRecords.length -
+              1
+          ]
+        : undefined;
+
+    const existingRepeatability =
+      repeatabilityRecords.find(
         (record) =>
-          record.inspectionId === Number(inspectionId) &&
-          record.testType === "WEIGHING_PERFORMANCE"
-      )
-      .sort((a, b) => a.id - b.id);
+          record.inspectionId ===
+          Number(inspectionId)
+      );
 
-    const existingWeighing = existingWeighingRecords.length > 0
-      ? existingWeighingRecords[existingWeighingRecords.length - 1]
-      : undefined;
-
-    const existingRepeatability = repeatabilityRecords.find(
-      (record) => record.inspectionId === Number(inspectionId)
-    );
-
-    const existingEccentricity = eccentricityRecords.find(
-      (record) => record.inspectionId === Number(inspectionId)
-    );
+    const existingEccentricity =
+      eccentricityRecords.find(
+        (record) =>
+          record.inspectionId ===
+          Number(inspectionId)
+      );
 
     const existingReference =
       existingWeighing?.referenceWeight ??
@@ -1472,8 +1861,11 @@ export default function Tests() {
       existingEccentricity?.referenceWeight;
 
     setReferenceWeight(
-      existingReference !== undefined
-        ? String(existingReference)
+      existingReference !==
+        undefined
+        ? String(
+            existingReference
+          )
         : ""
     );
 
@@ -1481,15 +1873,22 @@ export default function Tests() {
 
     setTemperature("");
     setHumidity("");
+
     // Keep the existing vibration default/current value unchanged.
 
-    setRepeatabilitySummary(null);
-    setEccentricitySummary(null);
+    setRepeatabilitySummary(
+      null
+    );
+
+    setEccentricitySummary(
+      null
+    );
 
     setRepeatabilityReadings(
       repeatabilityPositions.map(
         (_, index) => ({
-          readingNumber: index + 1,
+          readingNumber:
+            index + 1,
           observedWeight: "",
         })
       )
@@ -1524,6 +1923,7 @@ export default function Tests() {
       setErrorMessage(
         "This inspection is locked. Test data is read-only after completion."
       );
+
       return;
     }
 
@@ -1534,6 +1934,7 @@ export default function Tests() {
       setErrorMessage(
         "Complete Weighing Performance first."
       );
+
       return;
     }
 
@@ -1544,6 +1945,7 @@ export default function Tests() {
       setErrorMessage(
         "Complete Repeatability first."
       );
+
       return;
     }
 
@@ -1559,7 +1961,10 @@ export default function Tests() {
 
   async function submitWeighingPerformance() {
     if (inspectionLocked) {
-      setErrorMessage("This inspection is locked. Test data cannot be changed.");
+      setErrorMessage(
+        "This inspection is locked. Test data cannot be changed."
+      );
+
       return;
     }
 
@@ -1567,6 +1972,7 @@ export default function Tests() {
       setErrorMessage(
         "Please select an inspection."
       );
+
       return;
     }
 
@@ -1577,6 +1983,7 @@ export default function Tests() {
       setErrorMessage(
         "Please enter reference weight and observed weight."
       );
+
       return;
     }
 
@@ -1593,6 +2000,7 @@ export default function Tests() {
       setErrorMessage(
         "Please enter valid weight values."
       );
+
       return;
     }
 
@@ -1603,6 +2011,7 @@ export default function Tests() {
       setErrorMessage(
         "Please enter valid positive weight values."
       );
+
       return;
     }
 
@@ -1614,20 +2023,29 @@ export default function Tests() {
 
     const record = {
       clientRecordId,
+
       inspectionId:
         selectedInspection.id,
+
       testType:
         "WEIGHING_PERFORMANCE",
-      referenceWeight: reference,
-      observedWeight: observed,
+
+      referenceWeight:
+        reference,
+
+      observedWeight:
+        observed,
+
       temperature:
         temperature.trim() === ""
           ? null
           : Number(temperature),
+
       humidity:
         humidity.trim() === ""
           ? null
           : Number(humidity),
+
       vibration:
         vibration.trim() === ""
           ? null
@@ -1655,7 +2073,9 @@ export default function Tests() {
           JSON.stringify(updated)
         );
 
-        setOfflineTests(updated);
+        setOfflineTests(
+          updated
+        );
 
         setMessage(
           "Weighing performance test saved offline. You can continue with the next test."
@@ -1706,158 +2126,11 @@ export default function Tests() {
    */
 
   async function submitRepeatability() {
-  if (inspectionLocked) {
-    setErrorMessage("This inspection is locked. Test data cannot be changed.");
-    return;
-  }
-
-  if (!selectedInspection) {
-    setErrorMessage(
-      "Please select an inspection."
-    );
-    return;
-  }
-
-  if (!weighingComplete) {
-    setErrorMessage(
-      "Please complete Weighing Performance first."
-    );
-    return;
-  }
-
-  if (!referenceWeight) {
-    setErrorMessage(
-      "Please enter the common reference weight."
-    );
-    return;
-  }
-
-  const reference =
-    Number(referenceWeight);
-
-  if (
-    Number.isNaN(reference) ||
-    reference <= 0
-  ) {
-    setErrorMessage(
-      "Please enter a valid reference weight."
-    );
-    return;
-  }
-
-  const emptyReading =
-    repeatabilityReadings.find(
-      (reading) =>
-        reading.observedWeight.trim() === ""
-    );
-
-  if (emptyReading) {
-    setErrorMessage(
-      "Please enter all 5 repeatability readings."
-    );
-    return;
-  }
-
-  const invalidReading =
-    repeatabilityReadings.find(
-      (reading) => {
-        const value =
-          Number(reading.observedWeight);
-
-        return (
-          Number.isNaN(value) ||
-          value < 0
-        );
-      }
-    );
-
-  if (invalidReading) {
-    setErrorMessage(
-      "Please enter valid repeatability readings."
-    );
-    return;
-  }
-
-  try {
-    setSubmitting(true);
-    clearMessages();
-
-    // One testRunId for all 5 readings
-    const testRunId = Date.now();
-
-    for (
-      const reading of repeatabilityReadings
-    ) {
-      await api.post(
-        "/repeatability",
-        {
-          inspectionId:
-            selectedInspection.id,
-
-          testRunId:
-            testRunId,
-
-          referenceWeight:
-            reference,
-
-          observedWeight:
-            Number(
-              reading.observedWeight
-            ),
-
-          readingNumber:
-            reading.readingNumber,
-        }
-      );
-    }
-
-    setMessage(
-      "Repeatability test saved successfully. Eccentricity is now unlocked."
-    );
-
-    setRepeatabilityReadings(
-      repeatabilityPositions.map(
-        (_, index) => ({
-          readingNumber:
-            index + 1,
-          observedWeight: "",
-        })
-      )
-    );
-
-    await loadData();
-
-    setTestType(
-      "ECCENTRICITY"
-    );
-  } catch (error: any) {
-    console.error(
-      "Repeatability save error:",
-      error
-    );
-
-    console.error(
-      "Backend response:",
-      error?.response?.data
-    );
-
-    setErrorMessage(
-      error?.response?.data?.message ??
-        "Unable to save the repeatability test."
-    );
-  } finally {
-    setSubmitting(false);
-  }
-}
-  /*
-   * =========================================================
-   * ECCENTRICITY
-   * =========================================================
-   */
-
-  async function submitEccentricity() {
     if (inspectionLocked) {
-      setErrorMessage("This inspection is locked. Test data cannot be changed.");
+      setErrorMessage(
+        "This inspection is locked. Test data cannot be changed."
+      );
+
       return;
     }
 
@@ -1865,13 +2138,15 @@ export default function Tests() {
       setErrorMessage(
         "Please select an inspection."
       );
+
       return;
     }
 
-    if (!repeatabilityComplete) {
+    if (!weighingComplete) {
       setErrorMessage(
-        "Please complete Repeatability first."
+        "Please complete Weighing Performance first."
       );
+
       return;
     }
 
@@ -1879,6 +2154,7 @@ export default function Tests() {
       setErrorMessage(
         "Please enter the common reference weight."
       );
+
       return;
     }
 
@@ -1892,19 +2168,189 @@ export default function Tests() {
       setErrorMessage(
         "Please enter a valid reference weight."
       );
+
+      return;
+    }
+
+    const emptyReading =
+      repeatabilityReadings.find(
+        (reading) =>
+          reading.observedWeight.trim() ===
+          ""
+      );
+
+    if (emptyReading) {
+      setErrorMessage(
+        "Please enter all 5 repeatability readings."
+      );
+
+      return;
+    }
+
+    const invalidReading =
+      repeatabilityReadings.find(
+        (reading) => {
+          const value =
+            Number(
+              reading.observedWeight
+            );
+
+          return (
+            Number.isNaN(value) ||
+            value < 0
+          );
+        }
+      );
+
+    if (invalidReading) {
+      setErrorMessage(
+        "Please enter valid repeatability readings."
+      );
+
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      clearMessages();
+
+      // One testRunId for all 5 readings
+      const testRunId =
+        Date.now();
+
+      for (
+        const reading of
+          repeatabilityReadings
+      ) {
+        await api.post(
+          "/repeatability",
+          {
+            inspectionId:
+              selectedInspection.id,
+
+            testRunId:
+              testRunId,
+
+            referenceWeight:
+              reference,
+
+            observedWeight:
+              Number(
+                reading.observedWeight
+              ),
+
+            readingNumber:
+              reading.readingNumber,
+          }
+        );
+      }
+
+      setMessage(
+        "Repeatability test saved successfully. Eccentricity is now unlocked."
+      );
+
+      setRepeatabilityReadings(
+        repeatabilityPositions.map(
+          (_, index) => ({
+            readingNumber:
+              index + 1,
+
+            observedWeight:
+              "",
+          })
+        )
+      );
+
+      await loadData();
+
+      setTestType(
+        "ECCENTRICITY"
+      );
+    } catch (error: any) {
+      console.error(
+        "Repeatability save error:",
+        error
+      );
+
+      console.error(
+        "Backend response:",
+        error?.response?.data
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ??
+          "Unable to save the repeatability test."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /*
+   * =========================================================
+   * ECCENTRICITY
+   * =========================================================
+   */
+
+  async function submitEccentricity() {
+    if (inspectionLocked) {
+      setErrorMessage(
+        "This inspection is locked. Test data cannot be changed."
+      );
+
+      return;
+    }
+
+    if (!selectedInspection) {
+      setErrorMessage(
+        "Please select an inspection."
+      );
+
+      return;
+    }
+
+    if (!repeatabilityComplete) {
+      setErrorMessage(
+        "Please complete Repeatability first."
+      );
+
+      return;
+    }
+
+    if (!referenceWeight) {
+      setErrorMessage(
+        "Please enter the common reference weight."
+      );
+
+      return;
+    }
+
+    const reference =
+      Number(referenceWeight);
+
+    if (
+      Number.isNaN(reference) ||
+      reference <= 0
+    ) {
+      setErrorMessage(
+        "Please enter a valid reference weight."
+      );
+
       return;
     }
 
     const emptyReading =
       eccentricityReadings.find(
         (reading) =>
-          reading.observedWeight.trim() === ""
+          reading.observedWeight.trim() ===
+          ""
       );
 
     if (emptyReading) {
       setErrorMessage(
         "Please enter observed weight for all 5 positions."
       );
+
       return;
     }
 
@@ -1927,6 +2373,7 @@ export default function Tests() {
       setErrorMessage(
         "Please enter valid eccentricity readings."
       );
+
       return;
     }
 
@@ -1935,7 +2382,8 @@ export default function Tests() {
       clearMessages();
 
       for (
-        const reading of eccentricityReadings
+        const reading of
+          eccentricityReadings
       ) {
         await api.post(
           "/eccentricity",
@@ -2210,6 +2658,14 @@ export default function Tests() {
       setMessage(
         "Inspection approved by Controller successfully."
       );
+
+      // Controller approval completes the approval workflow.
+      // Open Certificates for the same inspection automatically.
+      navigate("/certificates", {
+        state: {
+          inspectionId: response.data.id,
+        },
+      });
 
       await loadData();
     } catch (error: any) {
@@ -3808,8 +4264,8 @@ export default function Tests() {
                 <div className="flex justify-between gap-3">
                   <span className="text-slate-500">Time</span>
                   <span className="text-right font-semibold text-slate-800">
-                    {latestRepeatabilityRecords.length > 0 && latestRepeatabilityRecords[0].createdAt
-                      ? formatDateTime(latestRepeatabilityRecords[0].createdAt)
+                    {latestRepeatabilityRecords.length > 0 && latestRepeatabilityRecords[latestRepeatabilityRecords.length - 1].createdAt
+                      ? formatDateTime(latestRepeatabilityRecords[latestRepeatabilityRecords.length - 1].createdAt)
                       : "—"}
                   </span>
                 </div>
@@ -3855,8 +4311,8 @@ export default function Tests() {
                 <div className="flex justify-between gap-3">
                   <span className="text-slate-500">Time</span>
                   <span className="text-right font-semibold text-slate-800">
-                    {inspectionEccentricity.length > 0 && inspectionEccentricity[0].createdAt
-                      ? formatDateTime(inspectionEccentricity[0].createdAt)
+                    {inspectionEccentricity.length > 0 && inspectionEccentricity[inspectionEccentricity.length - 1].createdAt
+                      ? formatDateTime(inspectionEccentricity[inspectionEccentricity.length - 1].createdAt)
                       : "—"}
                   </span>
                 </div>

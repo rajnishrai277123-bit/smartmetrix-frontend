@@ -1,66 +1,55 @@
+
 import { useEffect, useState } from "react";
-import {
-  Plus,
-  Search,
-  Gauge,
-  Pencil,
-  Trash2,
-  RefreshCw,
-  X,
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
-interface Instrument {
+type Instrument = {
   id: number;
-  serialNumber: string;
-  manufacturer: string;
-  model: string;
-  instrumentClass: string;
   capacity: number;
-  scaleInterval: number;
-  minCapacity: number;
-  status: string;
-}
-
-interface InstrumentForm {
-  serialNumber: string;
-  manufacturer: string;
-  model: string;
   instrumentClass: string;
-  capacity: string;
-  scaleInterval: string;
-  minCapacity: string;
+  manufacturer: string;
+  minCapacity: number;
+  model: string;
+  scaleInterval: number;
+  serialNumber: string;
   status: string;
-}
+};
 
-const initialForm: InstrumentForm = {
-  serialNumber: "",
-  manufacturer: "",
-  model: "",
-  instrumentClass: "III",
+const initialForm = {
   capacity: "",
-  scaleInterval: "",
+  instrumentClass: "III",
+  manufacturer: "",
   minCapacity: "",
+  model: "",
+  scaleInterval: "",
+  serialNumber: "",
   status: "ACTIVE",
 };
 
-function Instruments() {
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [search, setSearch] = useState("");
+export default function Instruments() {
+  const navigate = useNavigate();
 
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+
+  const [showModal, setShowModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [createdInstrumentId, setCreatedInstrumentId] = useState<number | null>(
+    null
+  );
+
+  const [form, setForm] = useState(initialForm);
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [showModal, setShowModal] = useState(false);
+  // --------------------------------------------------
+  // Fetch Instruments
+  // --------------------------------------------------
 
-  const [form, setForm] = useState<InstrumentForm>(initialForm);
-
-  const [editingId, setEditingId] = useState<number | null>(null);
-
-  // Fetch instruments
   const fetchInstruments = async () => {
     try {
       setLoading(true);
@@ -69,9 +58,13 @@ function Instruments() {
       const response = await api.get("/instruments");
 
       setInstruments(response.data);
-    } catch (error) {
-      console.error(error);
-      setError("Unable to load instruments");
+    } catch (err: any) {
+      console.error(err);
+
+      setError(
+        err?.response?.data?.message ||
+          "Failed to load instruments."
+      );
     } finally {
       setLoading(false);
     }
@@ -81,27 +74,28 @@ function Instruments() {
     fetchInstruments();
   }, []);
 
-  // Search
-  const filteredInstruments = instruments.filter((instrument) =>
-    `${instrument.serialNumber} ${instrument.manufacturer} ${instrument.model}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  // --------------------------------------------------
+  // Handle Input
+  // --------------------------------------------------
 
-  // Form input
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
 
-    setForm((previous) => ({
-      ...previous,
+    setForm((prev) => ({
+      ...prev,
       [name]: value,
     }));
   };
 
-  // Open Add modal
-  const openAddModal = () => {
+  // --------------------------------------------------
+  // Open Add Modal
+  // --------------------------------------------------
+
+  const handleAdd = () => {
     setEditingId(null);
     setForm(initialForm);
     setMessage("");
@@ -109,19 +103,22 @@ function Instruments() {
     setShowModal(true);
   };
 
-  // Open Edit modal
-  const openEditModal = (instrument: Instrument) => {
+  // --------------------------------------------------
+  // Open Edit Modal
+  // --------------------------------------------------
+
+  const handleEdit = (instrument: Instrument) => {
     setEditingId(instrument.id);
 
     setForm({
-      serialNumber: instrument.serialNumber,
-      manufacturer: instrument.manufacturer,
-      model: instrument.model,
-      instrumentClass: instrument.instrumentClass,
-      capacity: String(instrument.capacity),
-      scaleInterval: String(instrument.scaleInterval),
-      minCapacity: String(instrument.minCapacity),
-      status: instrument.status,
+      capacity: String(instrument.capacity ?? ""),
+      instrumentClass: instrument.instrumentClass ?? "III",
+      manufacturer: instrument.manufacturer ?? "",
+      minCapacity: String(instrument.minCapacity ?? ""),
+      model: instrument.model ?? "",
+      scaleInterval: String(instrument.scaleInterval ?? ""),
+      serialNumber: instrument.serialNumber ?? "",
+      status: instrument.status ?? "ACTIVE",
     });
 
     setMessage("");
@@ -129,84 +126,94 @@ function Instruments() {
     setShowModal(true);
   };
 
-  // Close modal
-  const closeModal = () => {
-    if (saving) {
-      return;
-    }
+  // --------------------------------------------------
+  // Create / Update Instrument
+  // --------------------------------------------------
 
-    setShowModal(false);
-    setEditingId(null);
-    setForm(initialForm);
-  };
-
-  // Create / Update
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
 
-    try {
-      setSaving(true);
-      setError("");
-      setMessage("");
+    setMessage("");
+    setError("");
 
+    try {
       const payload = {
-        serialNumber: form.serialNumber.trim(),
-        manufacturer: form.manufacturer.trim(),
-        model: form.model.trim(),
-        instrumentClass: form.instrumentClass,
         capacity: Number(form.capacity),
-        scaleInterval: Number(form.scaleInterval),
+        instrumentClass: form.instrumentClass,
+        manufacturer: form.manufacturer.trim(),
         minCapacity: Number(form.minCapacity),
+        model: form.model.trim(),
+        scaleInterval: Number(form.scaleInterval),
+        serialNumber: form.serialNumber.trim(),
         status: form.status,
       };
 
-      if (
-        !payload.serialNumber ||
-        !payload.manufacturer ||
-        !payload.model
-      ) {
-        setError("Please fill all required fields.");
-        return;
-      }
-
-      if (
-        payload.capacity <= 0 ||
-        payload.scaleInterval <= 0 ||
-        payload.minCapacity < 0
-      ) {
-        setError("Please enter valid capacity values.");
-        return;
-      }
+      // ----------------------------------------------
+      // CREATE
+      // ----------------------------------------------
 
       if (editingId === null) {
-        await api.post("/instruments", payload);
+        const response = await api.post(
+          "/instruments",
+          payload
+        );
 
-        setMessage("Instrument created successfully.");
-      } else {
-        await api.put(`/instruments/${editingId}`, payload);
+        const createdInstrument = response.data;
 
-        setMessage("Instrument updated successfully.");
+        // Save newly created instrument ID
+        setCreatedInstrumentId(createdInstrument.id);
+
+        // Close Add Instrument form
+        setShowModal(false);
+
+        // Reset form
+        setEditingId(null);
+        setForm(initialForm);
+
+        // Refresh instruments
+        await fetchInstruments();
+
+        // Show success popup
+        setShowSuccessModal(true);
       }
 
-      setShowModal(false);
-      setEditingId(null);
-      setForm(initialForm);
+      // ----------------------------------------------
+      // UPDATE
+      // ----------------------------------------------
 
-      await fetchInstruments();
-    } catch (error: any) {
-      console.error(error);
+      else {
+        await api.put(
+          `/instruments/${editingId}`,
+          payload
+        );
 
-      const backendMessage =
-        error?.response?.data?.message ||
-        "Unable to save instrument.";
+        setMessage(
+          "Instrument updated successfully."
+        );
 
-      setError(backendMessage);
-    } finally {
-      setSaving(false);
+        setShowModal(false);
+
+        setEditingId(null);
+        setForm(initialForm);
+
+        await fetchInstruments();
+      }
+    } catch (err: any) {
+      console.error(err);
+
+      setError(
+        err?.response?.data?.message ||
+          "Something went wrong."
+      );
     }
   };
 
-  // Delete
+  // --------------------------------------------------
+  // Delete Instrument
+  // --------------------------------------------------
+
   const handleDelete = async (id: number) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this instrument?"
@@ -222,309 +229,274 @@ function Instruments() {
 
       await api.delete(`/instruments/${id}`);
 
-      setMessage("Instrument deleted successfully.");
+      setMessage(
+        "Instrument deleted successfully."
+      );
 
       await fetchInstruments();
-    } catch (error: any) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
 
-      const backendMessage =
-        error?.response?.data?.message ||
-        "Unable to delete instrument.";
-
-      setError(backendMessage);
+      setError(
+        err?.response?.data?.message ||
+          "Failed to delete instrument."
+      );
     }
   };
 
+  // --------------------------------------------------
+  // Go To Inspection
+  // --------------------------------------------------
+
+  const handleGoToInspection = () => {
+    if (createdInstrumentId === null) {
+      return;
+    }
+
+    setShowSuccessModal(false);
+
+    navigate("/inspections", {
+      state: {
+        instrumentId: createdInstrumentId,
+      },
+    });
+  };
+
+  // --------------------------------------------------
+  // Close Success Popup
+  // --------------------------------------------------
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setCreatedInstrumentId(null);
+  };
+
+  // --------------------------------------------------
+  // Loading
+  // --------------------------------------------------
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-600 font-medium">
+          Loading instruments...
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
+
   return (
-    <div className="p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50 p-6">
 
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto">
 
-        <div>
-          <p className="text-sm text-slate-500">
-            Equipment Management
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
 
-          <h1 className="text-2xl font-bold text-slate-900">
-            Weighing Instruments
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Instruments
+            </h1>
 
-          <p className="text-slate-500 mt-1">
-            Manage registered non-automatic weighing instruments.
-          </p>
-        </div>
-
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold transition shadow-sm"
-        >
-          <Plus size={19} />
-          Add Instrument
-        </button>
-
-      </div>
-
-      {/* Messages */}
-      {message && (
-        <div className="mb-5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm">
-          {message}
-        </div>
-      )}
-
-      {error && !showModal && (
-        <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Total Instruments
-          </p>
-
-          <p className="text-3xl font-bold text-slate-900 mt-2">
-            {instruments.length}
-          </p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Active
-          </p>
-
-          <p className="text-3xl font-bold text-emerald-600 mt-2">
-            {
-              instruments.filter(
-                (instrument) => instrument.status === "ACTIVE"
-              ).length
-            }
-          </p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Inactive
-          </p>
-
-          <p className="text-3xl font-bold text-red-600 mt-2">
-            {
-              instruments.filter(
-                (instrument) => instrument.status !== "ACTIVE"
-              ).length
-            }
-          </p>
-        </div>
-
-      </div>
-
-      {/* Instruments Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-
-        {/* Search */}
-        <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
-
-          <div className="relative flex-1">
-
-            <Search
-              size={19}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
-              type="text"
-              placeholder="Search by serial number, manufacturer or model..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            />
-
+            <p className="text-sm text-slate-500 mt-1">
+              Manage weighing instruments used for inspections.
+            </p>
           </div>
 
           <button
-            onClick={fetchInstruments}
-            className="flex items-center justify-center gap-2 px-4 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
+            onClick={handleAdd}
+            className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
           >
-            <RefreshCw size={18} />
-            Refresh
+            + Add Instrument
           </button>
-
         </div>
 
-        {/* Loading */}
-        {loading ? (
-          <div className="p-10 text-center text-slate-500">
-            Loading instruments...
-          </div>
-        ) : filteredInstruments.length === 0 ? (
+        {/* Already Existing Instrument Guidance */}
 
-          <div className="p-12 text-center">
+        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
-            <Gauge
-              size={40}
-              className="mx-auto text-slate-300 mb-3"
-            />
+          <div>
+            <h2 className="font-semibold text-blue-900">
+              Already have an instrument?
+            </h2>
 
-            <p className="font-medium text-slate-700">
-              No instruments found
+            <p className="text-sm text-blue-700 mt-1">
+              You can directly select an existing instrument
+              and start an inspection.
             </p>
-
-            <p className="text-sm text-slate-400 mt-1">
-              Try changing your search or add a new instrument.
-            </p>
-
           </div>
 
-        ) : (
+          <button
+            onClick={() => navigate("/inspections")}
+            className="px-5 py-3 rounded-xl bg-white border border-blue-200 text-blue-700 font-semibold hover:bg-blue-100 transition"
+          >
+            Go to Inspection →
+          </button>
+        </div>
+
+        {/* Messages */}
+
+        {message && (
+          <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-700">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Instruments Table */}
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
 
           <div className="overflow-x-auto">
 
-            <table className="w-full text-left">
+            <table className="w-full text-sm">
 
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-100">
 
                 <tr>
-
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
-                    Instrument
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
+                    ID
                   </th>
 
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
+                    Serial Number
+                  </th>
+
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
+                    Model
+                  </th>
+
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
                     Manufacturer
                   </th>
 
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
                     Class
                   </th>
 
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
                     Capacity
                   </th>
 
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
                     Scale Interval
                   </th>
 
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
+                  <th className="text-left px-5 py-4 font-semibold text-slate-700">
                     Status
                   </th>
 
-                  <th className="px-5 py-4 text-xs font-semibold text-slate-500 uppercase">
-                    Action
+                  <th className="text-right px-5 py-4 font-semibold text-slate-700">
+                    Actions
                   </th>
-
                 </tr>
 
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
 
-                {filteredInstruments.map((instrument) => (
+                {instruments.length === 0 ? (
 
-                  <tr
-                    key={instrument.id}
-                    className="hover:bg-slate-50 transition"
-                  >
-
-                    <td className="px-5 py-5">
-
-                      <div className="flex items-center gap-3">
-
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                          <Gauge size={19} />
-                        </div>
-
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {instrument.model}
-                          </p>
-
-                          <p className="text-xs text-slate-500">
-                            S/N: {instrument.serialNumber}
-                          </p>
-                        </div>
-
-                      </div>
-
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="text-center py-10 text-slate-500"
+                    >
+                      No instruments found.
                     </td>
-
-                    <td className="px-5 py-5 text-sm text-slate-600">
-                      {instrument.manufacturer}
-                    </td>
-
-                    <td className="px-5 py-5">
-
-                      <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium">
-                        Class {instrument.instrumentClass}
-                      </span>
-
-                    </td>
-
-                    <td className="px-5 py-5 text-sm text-slate-600">
-                      {instrument.capacity} kg
-                    </td>
-
-                    <td className="px-5 py-5 text-sm text-slate-600">
-                      {instrument.scaleInterval} kg
-                    </td>
-
-                    <td className="px-5 py-5">
-
-                      {instrument.status === "ACTIVE" ? (
-
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-
-                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
-                          ACTIVE
-
-                        </span>
-
-                      ) : (
-
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold">
-
-                          <span className="w-2 h-2 rounded-full bg-red-500" />
-
-                          {instrument.status}
-
-                        </span>
-
-                      )}
-
-                    </td>
-
-                    <td className="px-5 py-5">
-
-                      <div className="flex items-center gap-2">
-
-                        <button
-                          onClick={() => openEditModal(instrument)}
-                          className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition"
-                          title="Edit"
-                        >
-                          <Pencil size={17} />
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(instrument.id)}
-                          className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition"
-                          title="Delete"
-                        >
-                          <Trash2 size={17} />
-                        </button>
-
-                      </div>
-
-                    </td>
-
                   </tr>
 
-                ))}
+                ) : (
+
+                  instruments.map((instrument) => (
+
+                    <tr
+                      key={instrument.id}
+                      className="border-t border-slate-100 hover:bg-slate-50"
+                    >
+
+                      <td className="px-5 py-4 text-slate-700">
+                        {instrument.id}
+                      </td>
+
+                      <td className="px-5 py-4 font-medium text-slate-900">
+                        {instrument.serialNumber}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-700">
+                        {instrument.model}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-700">
+                        {instrument.manufacturer}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-700">
+                        {instrument.instrumentClass}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-700">
+                        {instrument.capacity}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-700">
+                        {instrument.scaleInterval}
+                      </td>
+
+                      <td className="px-5 py-4">
+
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                            instrument.status === "ACTIVE"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {instrument.status}
+                        </span>
+
+                      </td>
+
+                      <td className="px-5 py-4">
+
+                        <div className="flex justify-end gap-2">
+
+                          <button
+                            onClick={() =>
+                              handleEdit(instrument)
+                            }
+                            className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleDelete(instrument.id)
+                            }
+                            className="px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 font-medium"
+                          >
+                            Delete
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+
+                  ))
+
+                )}
 
               </tbody>
 
@@ -532,26 +504,26 @@ function Instruments() {
 
           </div>
 
-        )}
+        </div>
 
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* ================================================= */}
+      {/* ADD / EDIT INSTRUMENT MODAL */}
+      {/* ================================================= */}
+
       {showModal && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 
-          {/* Background */}
           <div
             className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
-            onClick={closeModal}
+            onClick={() => setShowModal(false)}
           />
 
-          {/* Modal */}
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
 
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
+            <div className="flex items-center justify-between mb-6">
 
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
@@ -566,90 +538,100 @@ function Instruments() {
               </div>
 
               <button
-                onClick={closeModal}
-                className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
+                onClick={() => setShowModal(false)}
+                className="text-slate-400 hover:text-slate-700 text-2xl"
               >
-                <X size={20} />
+                ×
               </button>
 
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmit}>
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5"
+            >
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                 {/* Serial Number */}
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Serial Number *
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Serial Number
                   </label>
 
                   <input
+                    type="text"
                     name="serialNumber"
                     value={form.serialNumber}
                     onChange={handleChange}
-                    placeholder="SM-NAWI-002"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
                     required
-                  />
-                </div>
-
-                {/* Manufacturer */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Manufacturer *
-                  </label>
-
-                  <input
-                    name="manufacturer"
-                    value={form.manufacturer}
-                    onChange={handleChange}
-                    placeholder="SmartMetrix"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-                    required
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. TEST-001"
                   />
                 </div>
 
                 {/* Model */}
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Model *
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Model
                   </label>
 
                   <input
+                    type="text"
                     name="model"
                     value={form.model}
                     onChange={handleChange}
-                    placeholder="SM-200"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. DI-200"
                   />
                 </div>
 
-                {/* Class */}
+                {/* Manufacturer */}
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Instrument Class *
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Manufacturer
+                  </label>
+
+                  <input
+                    type="text"
+                    name="manufacturer"
+                    value={form.manufacturer}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. SmartMetrix"
+                  />
+                </div>
+
+                {/* Instrument Class */}
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Instrument Class
                   </label>
 
                   <select
                     name="instrumentClass"
                     value={form.instrumentClass}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="I">Class I</option>
-                    <option value="II">Class II</option>
-                    <option value="III">Class III</option>
-                    <option value="IIII">Class IIII</option>
+                    <option value="I">I</option>
+                    <option value="II">II</option>
+                    <option value="III">III</option>
+                    <option value="IIII">IIII</option>
                   </select>
                 </div>
 
                 {/* Capacity */}
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Capacity (kg) *
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Capacity
                   </label>
 
                   <input
@@ -658,34 +640,17 @@ function Instruments() {
                     name="capacity"
                     value={form.capacity}
                     onChange={handleChange}
-                    placeholder="100"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 50"
                   />
                 </div>
 
-                {/* Scale Interval */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Scale Interval (e) *
-                  </label>
+                {/* Minimum Capacity */}
 
-                  <input
-                    type="number"
-                    step="any"
-                    name="scaleInterval"
-                    value={form.scaleInterval}
-                    onChange={handleChange}
-                    placeholder="0.01"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                {/* Min Capacity */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Minimum Capacity (kg) *
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Minimum Capacity
                   </label>
 
                   <input
@@ -694,15 +659,35 @@ function Instruments() {
                     name="minCapacity"
                     value={form.minCapacity}
                     onChange={handleChange}
-                    placeholder="0.2"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 0.2"
+                  />
+                </div>
+
+                {/* Scale Interval */}
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Scale Interval (e)
+                  </label>
+
+                  <input
+                    type="number"
+                    step="any"
+                    name="scaleInterval"
+                    value={form.scaleInterval}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 0.01"
                   />
                 </div>
 
                 {/* Status */}
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Status
                   </label>
 
@@ -710,42 +695,45 @@ function Instruments() {
                     name="status"
                     value={form.status}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="ACTIVE">
+                      ACTIVE
+                    </option>
+
+                    <option value="INACTIVE">
+                      INACTIVE
+                    </option>
                   </select>
                 </div>
 
               </div>
 
-              {/* Modal Error */}
+              {/* Form Error */}
+
               {error && (
-                <div className="mx-6 mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-red-700 text-sm">
                   {error}
                 </div>
               )}
 
-              {/* Footer */}
-              <div className="px-6 py-5 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              {/* Buttons */}
+
+              <div className="flex justify-end gap-3 pt-4">
 
                 <button
                   type="button"
-                  onClick={closeModal}
-                  disabled={saving}
-                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition disabled:opacity-50"
+                  onClick={() => setShowModal(false)}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition disabled:opacity-60"
+                  className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
                 >
-                  {saving
-                    ? "Saving..."
-                    : editingId === null
+                  {editingId === null
                     ? "Create Instrument"
                     : "Update Instrument"}
                 </button>
@@ -760,8 +748,75 @@ function Instruments() {
 
       )}
 
+      {/* ================================================= */}
+      {/* SUCCESS MODAL */}
+      {/* ================================================= */}
+
+      {showSuccessModal && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+
+          {/* Background */}
+
+          <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" />
+
+          {/* Modal */}
+
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
+
+            <div className="text-center">
+
+              {/* Success Icon */}
+
+              <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 text-2xl font-bold">
+                ✓
+              </div>
+
+              {/* Title */}
+
+              <h2 className="text-xl font-bold text-slate-900">
+                Instrument Created Successfully
+              </h2>
+
+              {/* Message */}
+
+              <p className="text-sm text-slate-500 mt-2">
+                Your new instrument has been registered successfully.
+              </p>
+
+              <p className="text-sm text-slate-600 mt-3">
+                Would you like to go to Inspection and start an inspection?
+              </p>
+
+              {/* Buttons */}
+
+              <div className="flex justify-center gap-3 mt-6">
+
+                <button
+                  onClick={handleCloseSuccessModal}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition"
+                >
+                  Close
+                </button>
+
+                <button
+                  onClick={handleGoToInspection}
+                  className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+                >
+                  Go to Inspection
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
     </div>
   );
 }
 
-export default Instruments;
