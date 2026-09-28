@@ -8,6 +8,7 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  Bell,
   BrainCircuit,
   CheckCircle2,
   ClipboardCheck,
@@ -22,11 +23,13 @@ import {
   QrCode,
   RefreshCw,
   Scale,
+  Send,
   Settings,
   ShieldCheck,
   TestTube2,
   TrendingUp,
   X,
+  XCircle,
   AlertCircle,
   Zap,
 } from "lucide-react";
@@ -131,6 +134,15 @@ interface UserData {
   name?: string;
   email?: string;
   role?: string;
+}
+interface Notification {
+  id: number;
+  userId: number;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
 }
 
 /* =========================================================
@@ -529,12 +541,18 @@ function LocationRequired() {
    PROTECTED LAYOUT
 ========================================================= */
 
-function ProtectedLayout() {
-  const navigate = useNavigate();
+function ProtectedLayout() { 
+  const navigate = useNavigate(); 
+ 
+  const location = useLocation(); 
+ 
+  const [mobileOpen, setMobileOpen] = 
+    useState(false);
 
-  const location = useLocation();
+  const [notifications, setNotifications] =
+    useState<Notification[]>([]);
 
-  const [mobileOpen, setMobileOpen] =
+  const [showNotifications, setShowNotifications] =
     useState(false);
 
   const token =
@@ -545,6 +563,99 @@ function ProtectedLayout() {
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
+   useEffect(() => {
+  const loadNotifications = async () => {
+    try {
+      const currentUserId =
+        user.id ?? user.userId;
+
+      if (!currentUserId) {
+        console.warn(
+          "User ID not found. Notifications cannot be loaded."
+        );
+        return;
+      }
+
+      const response =
+        await api.get<Notification[]>(
+          `/notifications/${currentUserId}`
+        );
+
+      setNotifications(
+        Array.isArray(response.data)
+          ? response.data
+          : []
+      );
+
+    } catch (error) {
+      console.error(
+        "Notification loading failed:",
+        error
+      );
+    }
+  };
+
+  // First load
+  loadNotifications();
+
+  // Automatically refresh every 10 seconds
+  const interval = setInterval(() => {
+    loadNotifications();
+  }, 10000);
+
+  // Cleanup
+  return () => {
+    clearInterval(interval);
+  };
+
+}, [user.id, user.userId]);
+
+
+   const unreadNotificationCount =
+    notifications.filter(
+      (notification) => !notification.read
+    ).length;
+
+    const getNotificationStyle = (type: string) => {
+  switch (type) {
+
+    case "INSPECTION_PASSED":
+      return {
+        icon: <CheckCircle2 size={18} />,
+        iconClass: "bg-emerald-100 text-emerald-600",
+      };
+
+    case "INSPECTION_FAILED":
+      return {
+        icon: <XCircle size={18} />,
+        iconClass: "bg-red-100 text-red-600",
+      };
+
+    case "INSPECTION_SUBMITTED":
+      return {
+        icon: <Send size={18} />,
+        iconClass: "bg-amber-100 text-amber-600",
+      };
+
+    case "INSPECTION_APPROVED":
+      return {
+        icon: <ShieldCheck size={18} />,
+        iconClass: "bg-blue-100 text-blue-600",
+      };
+
+    case "CONTROLLER_APPROVED":
+      return {
+        icon: <ShieldCheck size={18} />,
+        iconClass: "bg-purple-100 text-purple-600",
+      };
+
+    default:
+      return {
+        icon: <Bell size={18} />,
+        iconClass: "bg-slate-100 text-slate-600",
+      };
+  }
+};
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -789,61 +900,242 @@ function ProtectedLayout() {
           </div>
 
 
-          {/* =================================================
-              RIGHT — LOGGED IN USER
-          ================================================= */}
+         {/* =================================================
+    RIGHT — NOTIFICATIONS + LOGGED IN USER
+================================================= */}
 
-          <div className="flex items-center gap-3">
+<div className="flex items-center gap-3">
 
-            <div className="hidden text-right sm:block">
+  {/* =================================================
+      NOTIFICATION BELL
+  ================================================= */}
 
-              {/* Live user status */}
+  <div className="relative">
 
-              <div className="flex items-center justify-end gap-1.5">
+    <button
+      type="button"
+      onClick={() => setShowNotifications(!showNotifications)}
+      className="relative rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+      aria-label="Notifications"
+    >
+      <Bell size={21} />
 
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-
-                <p className="text-sm font-semibold text-slate-800">
-                  {displayName}
-                </p>
-
-              </div>
-
-              {/* Role */}
-
-              <div className="mt-1 flex items-center justify-end gap-1.5">
-
-                <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-600">
-                  {displayRole}
-                </span>
-
-              </div>
-
-            </div>
+      {/* Unread notification count */}
+      {unreadNotificationCount > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+          {unreadNotificationCount}
+        </span>
+      )}
+    </button>
 
 
-            {/* Avatar */}
+    {/* =================================================
+        NOTIFICATION DROPDOWN
+    ================================================= */}
 
-            <div className="relative">
+    {showNotifications && (
+      <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-100 font-bold text-blue-700 shadow-sm ring-1 ring-blue-100">
+        {/* Dropdown Header */}
 
-                {displayName
-                  .charAt(0)
-                  .toUpperCase()}
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
 
-              </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">
+              Notifications
+            </h3>
 
-              {/* Active indicator */}
-
-              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-
-            </div>
-
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              SmartMetrix updates
+            </p>
           </div>
 
-        </header>
+          {unreadNotificationCount > 0 && (
+            <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-600">
+              {unreadNotificationCount} unread
+            </span>
+          )}
 
+        </div>
+
+
+        {/* =================================================
+            NOTIFICATION LIST
+        ================================================= */}
+
+        <div className="max-h-80 overflow-y-auto">
+
+          {notifications.length === 0 ? (
+
+            /* No notifications */
+
+            <div className="px-5 py-8 text-center">
+
+              <Bell
+                size={28}
+                className="mx-auto text-slate-300"
+              />
+
+              <p className="mt-3 text-sm font-medium text-slate-600">
+                No notifications
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">
+                You're all caught up.
+              </p>
+
+            </div>
+
+          ) : (
+
+            /* Notification list */
+
+            notifications.map((notification) => (
+
+              <button
+                key={notification.id}
+                type="button"
+                onClick={async () => {
+
+                  if (!notification.read) {
+
+                    try {
+
+                      await api.put(
+                        `/notifications/${notification.id}/read`
+                      );
+
+                      setNotifications((previous) =>
+                        previous.map((item) =>
+                          item.id === notification.id
+                            ? {
+                                ...item,
+                                read: true,
+                              }
+                            : item
+                        )
+                      );
+
+                    } catch (error) {
+
+                      console.error(
+                        "Failed to mark notification as read:",
+                        error
+                      );
+
+                    }
+
+                  }
+
+                }}
+                className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 ${
+                  notification.read
+                    ? "bg-white"
+                    : "bg-blue-50/60"
+                }`}
+              >
+
+                {/* Read / Unread Dot */}
+{/* Notification Icon */}
+
+<div
+  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+    getNotificationStyle(notification.type).iconClass
+  }`}
+>
+  {getNotificationStyle(notification.type).icon}
+</div>
+
+
+                {/* Notification Content */}
+
+                <div className="min-w-0 flex-1">
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {notification.title}
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {notification.message}
+                  </p>
+
+                  <p className="mt-1.5 text-[10px] text-slate-400">
+                    {new Date(
+                      notification.createdAt
+                    ).toLocaleString()}
+                  </p>
+
+                </div>
+
+              </button>
+
+            ))
+
+          )}
+
+        </div>
+
+      </div>
+    )}
+
+  </div>
+
+
+  {/* =================================================
+      LOGGED IN USER
+  ================================================= */}
+
+  <div className="hidden text-right sm:block">
+
+    {/* Live user status */}
+
+    <div className="flex items-center justify-end gap-1.5">
+
+      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+      <p className="text-sm font-semibold text-slate-800">
+        {displayName}
+      </p>
+
+    </div>
+
+
+    {/* Role */}
+
+    <div className="mt-1 flex items-center justify-end gap-1.5">
+
+      <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-600">
+        {displayRole}
+      </span>
+
+    </div>
+
+  </div>
+
+
+  {/* =================================================
+      AVATAR
+  ================================================= */}
+
+  <div className="relative">
+
+    <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-100 font-bold text-blue-700 shadow-sm ring-1 ring-blue-100">
+
+      {displayName
+        .charAt(0)
+        .toUpperCase()}
+
+    </div>
+
+    {/* Active indicator */}
+
+    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+
+  </div>
+
+</div>
+
+</header>
 
         {/* ===================================================
             PAGE CONTENT
