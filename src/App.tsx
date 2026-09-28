@@ -566,15 +566,27 @@ function ProtectedLayout() {
    useEffect(() => {
   const loadNotifications = async () => {
     try {
-      const currentUserId =
-        user.id ?? user.userId;
+ const token = localStorage.getItem("token");
 
-      if (!currentUserId) {
-        console.warn(
-          "User ID not found. Notifications cannot be loaded."
-        );
-        return;
-      }
+if (!token) {
+  console.warn(
+    "Token not found. Notifications cannot be loaded."
+  );
+  return;
+}
+
+const payload = JSON.parse(
+  atob(token.split(".")[1])
+);
+
+const currentUserId = payload.userId;
+
+if (!currentUserId) {
+  console.warn(
+    "User ID not found in token."
+  );
+  return;
+}
 
       const response =
         await api.get<Notification[]>(
