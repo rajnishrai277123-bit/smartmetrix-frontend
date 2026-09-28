@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CheckCircle2,
   Download,
@@ -8,6 +8,9 @@ import {
   XCircle,
   Search,
   Award,
+  FileText,
+  BadgeCheck,
+  Clock3,
 } from "lucide-react";
 
 import api from "../services/api";
@@ -242,6 +245,52 @@ export default function Certificates() {
     instruments,
   ]);
 
+  const certificateStats = useMemo(() => {
+    const valid = certificates.filter(
+      (certificate) =>
+        certificate.status === "ACTIVE" ||
+        certificate.status === "VALID"
+    ).length;
+
+    const pending = certificates.filter(
+      (certificate) => certificate.status === "PENDING"
+    ).length;
+
+    const pass = certificates.filter((certificate) => {
+      const inspection = inspections.find(
+        (item) => item.id === certificate.inspectionId
+      );
+      return inspection?.overallResult === "PASS";
+    }).length;
+
+    return {
+      total: certificates.length,
+      valid,
+      pending,
+      pass,
+    };
+  }, [certificates, inspections]);
+
+  const filteredGeneratedCertificates = useMemo(() => {
+    if (!search.trim()) {
+      return generatedCertificates;
+    }
+
+    const query = search.trim().toLowerCase();
+
+    return generatedCertificates.filter(
+      ({ certificate, inspection, instrument }) =>
+        certificate.certificateNumber
+          .toLowerCase()
+          .includes(query) ||
+        String(certificate.id).includes(query) ||
+        String(certificate.inspectionId).includes(query) ||
+        String(inspection?.id || "").includes(query) ||
+        instrument?.serialNumber?.toLowerCase().includes(query) ||
+        instrument?.model?.toLowerCase().includes(query)
+    );
+  }, [generatedCertificates, search]);
+
   /*
    * GENERATE CERTIFICATE
    */
@@ -442,32 +491,72 @@ export default function Certificates() {
 
         {/* HEADER */}
 
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/40 p-6 md:p-8 mb-8">
+          <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div>
-            <div className="flex items-center gap-3">
-              <Award className="w-8 h-8 text-blue-400" />
+          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/15 border border-blue-500/20">
+                  <Award className="w-7 h-7 text-blue-400" />
+                </div>
 
-              <h1 className="text-3xl font-bold">
-                Certificates
-              </h1>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">
+                    SmartMetrix
+                  </p>
+                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+                    Certificates
+                  </h1>
+                </div>
+              </div>
+
+              <p className="text-slate-400 mt-4 max-w-2xl">
+                Generate, download and verify inspection certificates after final Controller approval.
+              </p>
             </div>
 
-            <p className="text-slate-400 mt-2">
-              Generate, download and verify SmartMetrix
-              inspection certificates.
-            </p>
+            <button
+              type="button"
+              onClick={loadAll}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh Data
+            </button>
           </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={loadAll}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700"
-          >
-            <RefreshCw className="w-4 h-4" />
+        {/* CERTIFICATE STATS */}
 
-            Refresh
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+          <StatCard
+            label="Total Certificates"
+            value={certificateStats.total}
+            icon={<FileText className="w-5 h-5" />}
+            accent="blue"
+          />
+
+          <StatCard
+            label="Valid / Active"
+            value={certificateStats.valid}
+            icon={<BadgeCheck className="w-5 h-5" />}
+            accent="emerald"
+          />
+
+          <StatCard
+            label="Pending"
+            value={certificateStats.pending}
+            icon={<Clock3 className="w-5 h-5" />}
+            accent="amber"
+          />
+
+          <StatCard
+            label="PASS Inspections"
+            value={certificateStats.pass}
+            icon={<ShieldCheck className="w-5 h-5" />}
+            accent="violet"
+          />
         </div>
 
         {/* SUCCESS */}
@@ -672,15 +761,28 @@ export default function Certificates() {
 
         <section>
 
-          <div className="mb-5">
-            <h2 className="text-xl font-bold">
-              Generated Certificates
-            </h2>
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-xl font-bold">
+                Generated Certificates
+              </h2>
 
-            <p className="text-sm text-slate-400 mt-1">
-              Issued certificates grouped with their
-              corresponding inspections.
-            </p>
+              <p className="text-sm text-slate-400 mt-1">
+                Issued certificates grouped with their corresponding inspections.
+              </p>
+            </div>
+
+            {generatedCertificates.length > 0 && (
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search certificate / serial..."
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+            )}
           </div>
 
           {generatedCertificates.length === 0 ? (
@@ -700,7 +802,22 @@ export default function Certificates() {
           ) : (
             <div className="space-y-5">
 
-              {generatedCertificates.map(
+              {filteredGeneratedCertificates.length === 0 ? (
+                <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center">
+                  <Search className="w-9 h-9 text-slate-600 mx-auto" />
+                  <p className="mt-3 font-medium text-slate-300">
+                    No certificates match your search.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="mt-3 text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              ) : (
+              filteredGeneratedCertificates.map(
                 ({
                   certificate,
                   inspection,
@@ -1192,6 +1309,7 @@ export default function Certificates() {
                     </div>
                   );
                 }
+              )
               )}
 
             </div>
@@ -1207,6 +1325,46 @@ export default function Certificates() {
 /* ===================================================== */
 /* SMALL UI COMPONENTS */
 /* ===================================================== */
+
+function StatCard({
+  label,
+  value,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  accent: "blue" | "emerald" | "amber" | "violet";
+}) {
+  const accentClasses = {
+    blue: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    violet: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {label}
+          </p>
+          <p className="text-3xl font-bold mt-2 text-white">
+            {value}
+          </p>
+        </div>
+
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl border ${accentClasses[accent]}`}
+        >
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function InfoCard({
   label,

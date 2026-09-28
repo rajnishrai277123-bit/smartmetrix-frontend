@@ -1414,6 +1414,38 @@ const Inspections = () => {
     };
 
   /*
+   * --------------------------------------------------
+   * Dashboard Summary
+   * --------------------------------------------------
+   */
+
+  const inProgressCount = inspections.filter(
+    (inspection) => inspection.status === "IN_PROGRESS"
+  ).length;
+
+  const completedCount = inspections.filter(
+    (inspection) => inspection.status === "COMPLETED"
+  ).length;
+
+  const submittedCount = inspections.filter(
+    (inspection) => inspection.status === "SUBMITTED"
+  ).length;
+
+  const approvedCount = inspections.filter(
+    (inspection) =>
+      inspection.status === "APPROVED" ||
+      inspection.status === "CONTROLLER_APPROVED"
+  ).length;
+
+  const passedInspectionCount = inspections.filter(
+    (inspection) => inspection.overallResult === "PASS"
+  ).length;
+
+  const failedInspectionCount = inspections.filter(
+    (inspection) => inspection.overallResult === "FAIL"
+  ).length;
+
+  /*
    * ==================================================
    * UI
    * ==================================================
@@ -1497,6 +1529,36 @@ const Inspections = () => {
 
         </div>
       )}
+
+      {/* Inspection Overview */}
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+
+        {[
+          { label: "Total", value: inspections.length, tone: "text-slate-900", bg: "bg-white", icon: ClipboardCheck },
+          { label: "In Progress", value: inProgressCount, tone: "text-amber-700", bg: "bg-amber-50", icon: Clock3 },
+          { label: "Completed", value: completedCount, tone: "text-blue-700", bg: "bg-blue-50", icon: CheckCircle2 },
+          { label: "Submitted", value: submittedCount, tone: "text-purple-700", bg: "bg-purple-50", icon: Send },
+          { label: "Approved", value: approvedCount, tone: "text-emerald-700", bg: "bg-emerald-50", icon: ShieldCheck },
+          { label: "Pass / Fail", value: `${passedInspectionCount} / ${failedInspectionCount}`, tone: "text-slate-900", bg: "bg-slate-50", icon: Activity },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className={`rounded-2xl border border-slate-200 p-4 shadow-sm ${card.bg}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {card.label}
+                </span>
+                <Icon size={17} className="text-slate-400" />
+              </div>
+              <p className={`mt-2 text-2xl font-bold ${card.tone}`}>
+                {card.value}
+              </p>
+            </div>
+          );
+        })}
+
+      </section>
 
       {/* Create Inspection */}
 

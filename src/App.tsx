@@ -11,6 +11,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   ClipboardCheck,
+  Clock3,
   Cloud,
   FileCheck2,
   FileText,
@@ -55,6 +56,8 @@ import AnalyticsPage from "./pages/Analytics";
 import PredictiveAnalytics from "./pages/PredictiveAnalytics";
 import AdvancedAnalytics from "./pages/AdvancedAnalytics";
 import QRScanner from "./pages/QrScanner";
+import InstrumentHistory from "./pages/InstrumentHistory";
+import VerifyCertificate from "./pages/VerifyCertificate.tsx";
 
 /* =========================================================
    TYPES
@@ -144,6 +147,11 @@ const menuItems = [
     label: "Instruments",
     path: "/instruments",
     icon: Activity,
+  },
+  {
+    label: "Instrument History",
+    path: "/instrument-history",
+    icon: Clock3,
   },
   {
     label: "Inspections",
@@ -858,6 +866,14 @@ function ProtectedLayout() {
             <Route
               path="/instruments"
               element={<Instruments />}
+            />
+
+
+            {/* Instrument History */}
+
+            <Route
+              path="/instrument-history"
+              element={<InstrumentHistory />}
             />
 
 
@@ -3334,6 +3350,11 @@ function AppRoutes() {
             />
           )
         }
+      />
+
+      <Route
+        path="/verify/:certificateNumber"
+        element={<VerifyCertificate />}
       />
 
       <Route
