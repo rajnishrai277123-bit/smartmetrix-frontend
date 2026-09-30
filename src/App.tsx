@@ -1,3 +1,4 @@
+// App.tsx — updated with Notification History
 import {
   useEffect,
   useState,
@@ -1002,7 +1003,7 @@ if (!currentUserId) {
 
             /* Notification list */
 
-            notifications.map((notification) => (
+            notifications.slice(0, 5).map((notification) => (
 
               <button
                 key={notification.id}
@@ -1086,6 +1087,20 @@ if (!currentUserId) {
           )}
 
         </div>
+
+        {/* View All Notifications */}
+
+        <button
+          type="button"
+          onClick={() => {
+            setShowNotifications(false);
+            navigate("/notifications");
+          }}
+          className="flex w-full items-center justify-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold text-blue-600 transition hover:bg-blue-50 hover:text-blue-700"
+        >
+          View All Notifications
+          <ArrowRight size={14} />
+        </button>
 
       </div>
     )}
@@ -1275,6 +1290,14 @@ if (!currentUserId) {
             />
 
 
+            {/* Notification History */}
+
+            <Route
+              path="/notifications"
+              element={<NotificationHistory />}
+            />
+
+
             {/* Fallback */}
 
             <Route
@@ -1292,6 +1315,416 @@ if (!currentUserId) {
         </main>
 
       </div>
+
+    </div>
+  );
+}
+
+/* =========================================================
+   NOTIFICATION HISTORY
+========================================================= */
+
+function NotificationHistory() {
+  const navigate = useNavigate();
+
+  const [notifications, setNotifications] =
+    useState<Notification[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const loadNotificationHistory =
+    async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const token =
+          localStorage.getItem("token");
+
+        if (!token) {
+          navigate("/login", {
+            replace: true,
+          });
+          return;
+        }
+
+        const payload =
+          JSON.parse(
+            atob(token.split(".")[1])
+          );
+
+        const currentUserId =
+          payload.userId;
+
+        if (!currentUserId) {
+          throw new Error(
+            "User ID not found in token."
+          );
+        }
+
+        const response =
+          await api.get<Notification[]>(
+            `/notifications/${currentUserId}`
+          );
+
+        setNotifications(
+          Array.isArray(response.data)
+            ? response.data
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Notification history loading failed:",
+          error
+        );
+
+        setError(
+          "Unable to load notification history."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+  useEffect(() => {
+    loadNotificationHistory();
+  }, []);
+
+  const markAsRead =
+    async (notification: Notification) => {
+      if (notification.read) {
+        return;
+      }
+
+      try {
+        await api.put(
+          `/notifications/${notification.id}/read`
+        );
+
+        setNotifications((previous) =>
+          previous.map((item) =>
+            item.id === notification.id
+              ? {
+                  ...item,
+                  read: true,
+                }
+              : item
+          )
+        );
+      } catch (error) {
+        console.error(
+          "Failed to mark notification as read:",
+          error
+        );
+      }
+    };
+
+  const getNotificationStyle =
+    (type: string) => {
+      switch (type) {
+        case "INSPECTION_PASSED":
+          return {
+            icon: <CheckCircle2 size={20} />,
+            iconClass:
+              "bg-emerald-100 text-emerald-600",
+          };
+
+        case "INSPECTION_FAILED":
+          return {
+            icon: <XCircle size={20} />,
+            iconClass:
+              "bg-red-100 text-red-600",
+          };
+
+        case "INSPECTION_SUBMITTED":
+          return {
+            icon: <Send size={20} />,
+            iconClass:
+              "bg-amber-100 text-amber-600",
+          };
+
+        case "INSPECTION_APPROVED":
+          return {
+            icon: <ShieldCheck size={20} />,
+            iconClass:
+              "bg-blue-100 text-blue-600",
+          };
+
+        case "CONTROLLER_APPROVED":
+          return {
+            icon: <ShieldCheck size={20} />,
+            iconClass:
+              "bg-purple-100 text-purple-600",
+          };
+
+        case "PENDING_SENIOR_APPROVAL":
+          return {
+            icon: <Clock3 size={20} />,
+            iconClass:
+              "bg-orange-100 text-orange-600",
+          };
+
+        case "PENDING_CONTROLLER_APPROVAL":
+          return {
+            icon: <ShieldCheck size={20} />,
+            iconClass:
+              "bg-indigo-100 text-indigo-600",
+          };
+
+        default:
+          return {
+            icon: <Bell size={20} />,
+            iconClass:
+              "bg-slate-100 text-slate-600",
+          };
+      }
+    };
+
+  const unreadCount =
+    notifications.filter(
+      (notification) =>
+        !notification.read
+    ).length;
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+
+      {/* Header */}
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+        <div>
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <Bell size={23} />
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Notification History
+              </h1>
+
+              <p className="mt-1 text-sm text-slate-500">
+                View all your SmartMetrix notifications.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            navigate(-1)
+          }
+          className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+        >
+          <ArrowRight
+            size={16}
+            className="rotate-180"
+          />
+          Back
+        </button>
+
+      </div>
+
+      {/* Summary */}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Total Notifications
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-slate-900">
+            {notifications.length}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            All notifications stored for your account
+          </p>
+
+        </div>
+
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 shadow-sm">
+
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+            Unread
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-blue-700">
+            {unreadCount}
+          </p>
+
+          <p className="mt-1 text-xs text-blue-600/70">
+            Notifications that need your attention
+          </p>
+
+        </div>
+
+      </div>
+
+      {/* History */}
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+
+          <div>
+            <h2 className="font-semibold text-slate-900">
+              All Notifications
+            </h2>
+
+            <p className="mt-0.5 text-xs text-slate-500">
+              Newest notifications appear first.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadNotificationHistory}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+          >
+            Refresh
+          </button>
+
+        </div>
+
+        {loading ? (
+
+          <div className="px-5 py-16 text-center">
+
+            <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+            <p className="mt-4 text-sm text-slate-500">
+              Loading notification history...
+            </p>
+
+          </div>
+
+        ) : error ? (
+
+          <div className="px-5 py-16 text-center">
+
+            <AlertCircle
+              size={34}
+              className="mx-auto text-red-400"
+            />
+
+            <p className="mt-3 text-sm font-medium text-red-600">
+              {error}
+            </p>
+
+            <button
+              type="button"
+              onClick={loadNotificationHistory}
+              className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-500"
+            >
+              Try Again
+            </button>
+
+          </div>
+
+        ) : notifications.length === 0 ? (
+
+          <div className="px-5 py-16 text-center">
+
+            <Bell
+              size={36}
+              className="mx-auto text-slate-300"
+            />
+
+            <p className="mt-4 text-sm font-semibold text-slate-600">
+              No notifications yet
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Your SmartMetrix notifications will appear here.
+            </p>
+
+          </div>
+
+        ) : (
+
+          <div className="divide-y divide-slate-100">
+
+            {notifications.map(
+              (notification) => {
+
+                const style =
+                  getNotificationStyle(
+                    notification.type
+                  );
+
+                return (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    onClick={() =>
+                      markAsRead(
+                        notification
+                      )
+                    }
+                    className={`flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-slate-50 ${
+                      notification.read
+                        ? "bg-white"
+                        : "bg-blue-50/50"
+                    }`}
+                  >
+
+                    <div
+                      className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${style.iconClass}`}
+                    >
+                      {style.icon}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+
+                        <div className="flex items-center gap-2">
+
+                          <p className="text-sm font-semibold text-slate-800">
+                            {notification.title}
+                          </p>
+
+                          {!notification.read && (
+                            <span className="h-2 w-2 rounded-full bg-blue-600" />
+                          )}
+
+                        </div>
+
+                        <p className="shrink-0 text-[11px] text-slate-400">
+                          {new Date(
+                            notification.createdAt
+                          ).toLocaleString()}
+                        </p>
+
+                      </div>
+
+                      <p className="mt-1.5 text-sm leading-6 text-slate-500">
+                        {notification.message}
+                      </p>
+
+                    </div>
+
+                  </button>
+                );
+              }
+            )}
+
+          </div>
+
+        )}
+
+      </section>
 
     </div>
   );
