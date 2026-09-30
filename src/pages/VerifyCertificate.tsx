@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
   Clock3,
   FileCheck2,
@@ -148,6 +149,13 @@ function VerifyCertificate() {
   }, [certificateNumber]);
 
   const isValid = data?.valid === true;
+  const verificationChecks = [
+    data?.integrityVerified,
+    data?.certificateStatusValid,
+    data?.inspectionStatusValid,
+    data?.resultValid,
+  ];
+  const verifiedCount = verificationChecks.filter(Boolean).length;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -233,9 +241,62 @@ function VerifyCertificate() {
         {/* Verification result */}
         {!loading && !error && data && (
           <>
+            {/* Premium verification hero */}
+            <section
+              className={`relative overflow-hidden rounded-[2rem] border bg-white shadow-xl ${
+                isValid ? "border-emerald-200" : "border-red-200"
+              }`}
+            >
+              <div className={`absolute inset-x-0 top-0 h-1.5 ${isValid ? "bg-emerald-500" : "bg-red-500"}`} />
+              <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-emerald-100/50 blur-3xl" />
+              <div className="relative p-6 md:p-10">
+                <div className="flex flex-col items-center text-center">
+                  <div className={`relative flex h-24 w-24 items-center justify-center rounded-full border-8 ${isValid ? "border-emerald-100 bg-emerald-500 text-white" : "border-red-100 bg-red-500 text-white"}`}>
+                    {isValid ? <ShieldCheck size={46} /> : <XCircle size={46} />}
+                    {isValid && <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-white text-emerald-600 shadow"><Check size={16} /></span>}
+                  </div>
+
+                  <p className={`mt-5 text-xs font-bold uppercase tracking-[0.3em] ${isValid ? "text-emerald-600" : "text-red-600"}`}>
+                    Digital Certificate Verification
+                  </p>
+                  <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+                    {isValid ? "CERTIFICATE VERIFIED" : "CERTIFICATE INVALID"}
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                    {data.message || (isValid ? "This certificate has passed the available authenticity and integrity checks." : "This certificate did not pass all verification checks.")}
+                  </p>
+
+                  <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Certificate Number</p>
+                      <p className="mt-1 font-mono text-base font-bold text-slate-900">{data.certificateNumber || certificateNumber}</p>
+                    </div>
+                    <div className={`rounded-2xl px-5 py-3 ${isValid ? "bg-emerald-50" : "bg-red-50"}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Verification</p>
+                      <p className={`mt-1 text-base font-bold ${isValid ? "text-emerald-700" : "text-red-700"}`}>{verifiedCount}/4 Checks Passed</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 grid gap-3 sm:grid-cols-4">
+                  {[
+                    ["Integrity", data.integrityVerified],
+                    ["Certificate", data.certificateStatusValid],
+                    ["Inspection", data.inspectionStatusValid],
+                    ["Result", data.resultValid],
+                  ].map(([label, ok]) => (
+                    <div key={String(label)} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-bold ${ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                      {ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             {/* Main status */}
             <section
-              className={`rounded-3xl border bg-white p-6 shadow-sm md:p-8 ${
+              className={`mt-6 rounded-3xl border bg-white p-6 shadow-sm md:p-8 ${
                 isValid
                   ? "border-emerald-200"
                   : "border-red-200"
