@@ -928,10 +928,23 @@ if (!currentUserId) {
     <button
       type="button"
       onClick={() => setShowNotifications(!showNotifications)}
-      className="relative rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+      className={`group relative rounded-xl p-2.5 text-slate-600 transition-all duration-300 hover:bg-blue-50 hover:text-blue-700 ${
+        unreadNotificationCount > 0 ? "bg-blue-50/70" : ""
+      }`}
       aria-label="Notifications"
     >
-      <Bell size={21} />
+      {unreadNotificationCount > 0 && (
+        <span className="absolute inset-0 rounded-xl bg-blue-400/20 animate-ping" />
+      )}
+
+      <span className="relative flex items-center justify-center">
+        <Bell
+          size={21}
+          className={`transition-transform duration-300 group-hover:rotate-12 ${
+            unreadNotificationCount > 0 ? "animate-[wiggle_1.8s_ease-in-out_infinite]" : ""
+          }`}
+        />
+      </span>
 
       {/* Unread notification count */}
       {unreadNotificationCount > 0 && (
@@ -947,27 +960,51 @@ if (!currentUserId) {
     ================================================= */}
 
     {showNotifications && (
-      <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="absolute right-0 top-12 z-50 w-[360px] overflow-hidden rounded-3xl border border-white/80 bg-white/95 shadow-[0_20px_60px_-15px_rgba(15,23,42,0.25)] backdrop-blur-xl">
 
-        {/* Dropdown Header */}
+        {/* Premium notification header */}
 
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 px-5 py-4 text-white">
 
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              Notifications
-            </h3>
+          <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-12 left-16 h-24 w-24 rounded-full bg-cyan-300/10 blur-2xl" />
 
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              SmartMetrix updates
-            </p>
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur-sm">
+                <Bell size={19} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold tracking-tight">
+                  Notification Center
+                </h3>
+                <p className="mt-0.5 text-[11px] text-blue-100">
+                  SmartMetrix live updates
+                </p>
+              </div>
+            </div>
+
+            <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold ring-1 ring-white/15">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
+              LIVE
+            </span>
           </div>
 
-          {unreadNotificationCount > 0 && (
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-600">
-              {unreadNotificationCount} unread
-            </span>
-          )}
+          <div className="relative mt-4 flex items-center justify-between rounded-2xl bg-white/10 px-3 py-2.5 ring-1 ring-white/10">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-blue-100">
+                Inbox status
+              </p>
+              <p className="mt-0.5 text-xs font-semibold">
+                {unreadNotificationCount === 0
+                  ? "You're all caught up"
+                  : `${unreadNotificationCount} notification${unreadNotificationCount > 1 ? "s" : ""} need attention`}
+              </p>
+            </div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-extrabold text-blue-700 shadow-sm">
+              {unreadNotificationCount}
+            </div>
+          </div>
 
         </div>
 
@@ -1041,7 +1078,7 @@ if (!currentUserId) {
                   }
 
                 }}
-                className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 ${
+                className={`group/item relative flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-[1px] hover:bg-slate-50 ${
                   notification.read
                     ? "bg-white"
                     : "bg-blue-50/60"
@@ -1052,7 +1089,7 @@ if (!currentUserId) {
 {/* Notification Icon */}
 
 <div
-  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+  className={`relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 group-hover/item:scale-105 ${
     getNotificationStyle(notification.type).iconClass
   }`}
 >
