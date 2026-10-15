@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 const api = axios.create({
@@ -16,5 +17,17 @@ api.interceptors.request.use((config) => {
 
   return config;
 });
+
+// Get health data for one instrument
+export const getInstrumentHealth = async (instrumentId: number) => {
+  const response = await api.get(`/instruments/${instrumentId}/health`);
+  return response.data;
+};
+
+// Get health data for all instruments
+export const getAllInstrumentHealth = async () => {
+  const response = await api.get("/instruments/health");
+  return response.data;
+};
 
 export default api;

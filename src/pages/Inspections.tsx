@@ -57,6 +57,7 @@ interface TestRecord {
   error: number;
   mpe: number;
   result: string;
+  complianceExplanation?: string;
 }
 
 interface RepeatabilityRecord {
@@ -2408,7 +2409,7 @@ const Inspections = () => {
 
                         <div className="mt-5 overflow-x-auto">
 
-                          <table className="w-full min-w-[650px] text-left text-sm">
+                          <table className="w-full min-w-[760px] text-left text-sm">
 
                             <thead>
 
@@ -2475,9 +2476,12 @@ const Inspections = () => {
                                     </td>
 
                                     <td className="py-3 text-slate-600">
-                                      {
-                                        test.error
-                                      }
+                                      <div className="font-semibold">
+                                        {Number(test.error).toFixed(5)}
+                                      </div>
+                                      <div className="text-[11px] text-slate-400">
+                                        Absolute: {Math.abs(Number(test.error)).toFixed(5)}
+                                      </div>
                                     </td>
 
                                     <td className="py-3 text-slate-600">
@@ -2487,17 +2491,23 @@ const Inspections = () => {
                                     </td>
 
                                     <td className="py-3">
-
-                                      <span
-                                        className={`rounded-full border px-2 py-1 text-xs font-semibold ${getResultClass(
-                                          test.result
-                                        )}`}
-                                      >
-                                        {
-                                          test.result
-                                        }
-                                      </span>
-
+                                      <div className="flex flex-col items-start gap-2">
+                                        <span
+                                          className={`rounded-full border px-2 py-1 text-xs font-semibold ${getResultClass(
+                                            test.result
+                                          )}`}
+                                        >
+                                          {test.result || "PENDING"}
+                                        </span>
+                                        <p className="max-w-xs text-xs leading-5 text-slate-600">
+                                          {test.complianceExplanation ||
+                                            (Number.isFinite(Number(test.error)) && Number.isFinite(Number(test.mpe))
+                                              ? Math.abs(Number(test.error)) <= Number(test.mpe)
+                                                ? `PASS: Absolute error ${Math.abs(Number(test.error)).toFixed(5)} is within the MPE limit of ${Number(test.mpe).toFixed(5)}.`
+                                                : `FAIL: Absolute error ${Math.abs(Number(test.error)).toFixed(5)} exceeds the MPE limit of ${Number(test.mpe).toFixed(5)}.`
+                                              : "Compliance explanation is not available for this record.")}
+                                        </p>
+                                      </div>
                                     </td>
 
                                   </tr>

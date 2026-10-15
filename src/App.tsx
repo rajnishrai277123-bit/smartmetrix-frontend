@@ -49,6 +49,7 @@ import api from "./services/api";
 
 import Instruments from "./pages/Instruments";
 import Inspections from "./pages/Inspections";
+import { getInstrumentHealth } from "./services/healthService";
 import Tests from "./pages/Tests";
 import Approvals from "./pages/Approvals";
 import Certificates from "./pages/Certificates";
@@ -2015,6 +2016,60 @@ function InspectionJourney({
 function Dashboard() {
   const navigate = useNavigate();
 
+  const [health, setHealth] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [healthInstruments, setHealthInstruments] = useState<Instrument[]>([]);
+  const [selectedHealthInstrumentId, setSelectedHealthInstrumentId] = useState<number>(6);
+  const [healthError, setHealthError] = useState("");
+
+  // Load registered instruments for the Health Monitor dropdown.
+  useEffect(() => {
+    let cancelled = false;
+
+    api.get("/instruments")
+      .then((response) => {
+        const rows: Instrument[] = Array.isArray(response.data) ? response.data : [];
+        if (cancelled) return;
+        setHealthInstruments(rows);
+        if (rows.length > 0) {
+          setSelectedHealthInstrumentId((currentId) =>
+            rows.some((instrument) => Number(instrument.id) === currentId)
+              ? currentId
+              : Number(rows[0].id)
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Instrument list for health dropdown failed:", error);
+        if (!cancelled) setHealthError("Could not load registered instruments.");
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  // Reload the health report whenever the selected instrument changes.
+  useEffect(() => {
+    let cancelled = false;
+    setHealthLoading(true);
+    setHealthError("");
+    setHealth(null);
+
+    getInstrumentHealth(selectedHealthInstrumentId)
+      .then((data) => {
+        if (!cancelled) setHealth(data);
+      })
+      .catch((error) => {
+        console.error("Health loading failed:", error);
+        if (!cancelled) setHealthError("Health data could not be loaded for this instrument.");
+      })
+      .finally(() => {
+        if (!cancelled) setHealthLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedHealthInstrumentId]);
+
+
   const [stats, setStats] =
     useState<DashboardStats>({
       totalInspections: 0,
@@ -2418,6 +2473,139 @@ function Dashboard() {
 
       </section>
 
+      
+      {/* INSTRUMENT HEALTH MONITOR */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50/70 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">Instrument Health Monitor</h2>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live report
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">Health, inspection history and test quality for a selected instrument.</p>
+              </div>
+            </div>
+
+            <div className="w-full lg:max-w-md">
+              <label htmlFor="health-instrument-select" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                Select instrument
+              </label>
+              <select
+                id="health-instrument-select"
+                value={selectedHealthInstrumentId}
+                onChange={(event) => setSelectedHealthInstrumentId(Number(event.target.value))}
+                disabled={healthInstruments.length === 0}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
+              >
+                {healthInstruments.length === 0 ? (
+                  <option value={selectedHealthInstrumentId}>Loading instruments...</option>
+                ) : (
+                  healthInstruments.map((instrument) => (
+                    <option key={instrument.id} value={instrument.id}>
+                      #{instrument.id} · {instrument.serialNumber || "No serial number"} · {instrument.model || instrument.manufacturer || "Instrument"}
+                    </option>
+                  ))
+                )}
+              </select>
+              <p className="mt-1.5 text-xs text-slate-400">Choose an instrument to refresh its health report.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-6">
+          {healthLoading ? (
+            <div className="flex min-h-40 flex-col items-center justify-center gap-3 text-sm text-slate-500">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+              Loading instrument health...
+            </div>
+          ) : health ? (
+            <>
+              <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm ring-1 ring-slate-200">
+                    <Gauge className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Selected instrument</p>
+                    <h3 className="mt-1 text-xl font-bold text-slate-900">{health.model || "Instrument"}</h3>
+                    <p className="mt-0.5 text-sm text-slate-500">{health.serialNumber || "Serial number unavailable"}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-28">
+                    <p className="text-xs font-semibold text-slate-500">Health score</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900">{Number(health.healthScore).toFixed(1)}<span className="ml-1 text-sm font-medium text-slate-400">/100</span></p>
+                  </div>
+                  <span className={`rounded-full px-3.5 py-2 text-xs font-bold tracking-wide ${health.healthStatus === "CRITICAL" ? "bg-red-100 text-red-700" : health.healthStatus === "WARNING" ? "bg-amber-100 text-amber-700" : health.healthStatus === "NO_DATA" ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-700"}`}>
+                    {health.healthStatus === "NO_DATA" ? "NO DATA" : health.healthStatus || "UNKNOWN"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+                  <p className="text-sm font-medium text-blue-700">Pass rate</p>
+                  <p className="mt-2 text-2xl font-bold text-blue-900">{Number(health.passRate).toFixed(1)}%</p>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, Number(health.passRate) || 0))}%` }} /></div>
+                </div>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+                  <p className="text-sm font-medium text-emerald-700">Passed inspections</p>
+                  <p className="mt-2 text-2xl font-bold text-emerald-900">{health.passedInspections ?? 0}</p>
+                  <p className="mt-1 text-xs text-emerald-700/80">Successful results</p>
+                </div>
+                <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-4">
+                  <p className="text-sm font-medium text-rose-700">Failed inspections</p>
+                  <p className="mt-2 text-2xl font-bold text-rose-900">{health.failedInspections ?? 0}</p>
+                  <p className="mt-1 text-xs text-rose-700/80">Require attention</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <p className="text-sm font-medium text-slate-500">Total inspections</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">{health.totalInspections ?? 0}</p>
+                  <p className="mt-1 text-xs text-slate-500">Recorded for this instrument</p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-slate-200 p-4 sm:p-5">
+                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="font-bold text-slate-900">Test quality breakdown</h3>
+                  <p className="text-xs text-slate-500">Based on available test records</p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {[
+                    { label: "Weighing performance", short: "WP", value: health.wpQuality, color: "bg-blue-600", track: "bg-blue-100", text: "text-blue-700" },
+                    { label: "Repeatability", short: "REP", value: health.repeatabilityQuality, color: "bg-violet-600", track: "bg-violet-100", text: "text-violet-700" },
+                    { label: "Eccentricity", short: "ECC", value: health.eccentricityQuality, color: "bg-teal-600", track: "bg-teal-100", text: "text-teal-700" },
+                  ].map((item) => (
+                    <div key={item.short} className="rounded-lg bg-slate-50 p-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-slate-600">{item.label}</span>
+                        <span className={`text-sm font-bold ${item.text}`}>{Number(item.value ?? 0).toFixed(1)}%</span>
+                      </div>
+                      <div className={`mt-3 h-2 overflow-hidden rounded-full ${item.track}`}>
+                        <div className={`h-full rounded-full ${item.color} transition-all`} style={{ width: `${Math.max(0, Math.min(100, Number(item.value) || 0))}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+              <p className="font-semibold text-slate-700">Health report unavailable</p>
+              <p className="mt-1 text-sm text-slate-500">{healthError || "Check the backend connection and selected instrument."}</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+
       {/* =====================================================
           KPI CARDS
       ===================================================== */}
@@ -2789,6 +2977,97 @@ function Dashboard() {
             </div>
 
           </div>
+
+          
+{/* Instrument Health Summary */}
+<section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 className="text-lg font-bold text-slate-900">
+        Instrument Health Summary
+      </h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Health analysis based on inspection history
+      </p>
+    </div>
+    <button
+      type="button"
+      onClick={() => navigate("/instruments")}
+      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+    >
+      View Instruments
+    </button>
+  </div>
+
+  {healthLoading ? (
+    <p className="mt-5 text-sm text-slate-500">
+      Loading instrument health...
+    </p>
+  ) : health ? (
+    <>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl bg-slate-50 p-4">
+          <p className="text-sm text-slate-500">Instrument</p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {health.serialNumber}
+          </p>
+          <p className="text-sm text-slate-500">
+            ID #{health.instrumentId} · {health.model}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-slate-50 p-4">
+          <p className="text-sm text-slate-500">Health Score</p>
+          <p className="mt-1 text-3xl font-bold text-slate-900">
+            {Number(health.healthScore).toFixed(2)}
+            <span className="text-base font-medium text-slate-500"> / 100</span>
+          </p>
+          <p className={`mt-1 text-sm font-bold ${
+            health.healthStatus === "CRITICAL"
+              ? "text-red-600"
+              : health.healthStatus === "WARNING"
+              ? "text-amber-600"
+              : "text-green-600"
+          }`}>
+            {health.healthStatus}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-slate-50 p-4">
+          <p className="text-sm text-slate-500">Inspection Summary</p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {health.totalInspections} Total
+          </p>
+          <p className="mt-1 text-sm text-green-700">
+            Passed: {health.passedInspections}
+          </p>
+          <p className="text-sm text-red-600">
+            Failed: {health.failedInspections}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-sm text-slate-500">
+          Pass Rate: {health.passRate}%
+        </p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-blue-600"
+            style={{
+              width: `${Math.max(0, Math.min(100, Number(health.passRate) || 0))}%`,
+            }}
+          />
+        </div>
+      </div>
+    </>
+  ) : (
+    <p className="mt-5 text-sm text-amber-700">
+      {healthError || "Health data could not be loaded. Check the backend connection."}
+    </p>
+  )}
+</section>
+
 
 
           {/* Bottom Insight */}
