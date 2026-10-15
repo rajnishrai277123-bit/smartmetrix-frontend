@@ -746,6 +746,12 @@ export default function Tests() {
   const [workflowLoading, setWorkflowLoading] =
     useState(false);
 
+  const [hardwareReadingLoading, setHardwareReadingLoading] =
+    useState(false);
+
+  const [hardwareReadingNote, setHardwareReadingNote] =
+    useState("");
+
   const [message, setMessage] =
     useState("");
 
@@ -1958,6 +1964,69 @@ export default function Tests() {
    * WEIGHING PERFORMANCE
    * =========================================================
    */
+
+
+  async function captureVirtualScaleReading() {
+    if (inspectionLocked) {
+      setErrorMessage("This inspection is locked. Test data cannot be changed.");
+      return;
+    }
+
+    if (!selectedInspection || !selectedInstrument) {
+      setErrorMessage("Please select an inspection with a linked instrument first.");
+      return;
+    }
+
+    const reference = Number(referenceWeight);
+    const scaleInterval = Number(selectedInstrument.scaleInterval);
+
+    if (!referenceWeight.trim() || !Number.isFinite(reference) || reference <= 0) {
+      setErrorMessage("Enter a valid reference weight before reading the scale.");
+      return;
+    }
+
+    if (!Number.isFinite(scaleInterval) || scaleInterval <= 0) {
+      setErrorMessage("The selected instrument has an invalid scale interval.");
+      return;
+    }
+
+    try {
+      setHardwareReadingLoading(true);
+      setHardwareReadingNote("");
+      clearMessages();
+
+      const response = await api.post<{
+        weight: number;
+        stable: boolean;
+        source?: string;
+      }>("/hardware/read", null, {
+        params: { referenceWeight: reference, scaleInterval },
+      });
+
+      const reading = Number(response.data?.weight);
+      if (!Number.isFinite(reading) || reading < 0) {
+        throw new Error("The scale endpoint returned an invalid weight.");
+      }
+
+      setObservedWeight(String(reading));
+      setHardwareReadingNote(
+        `Reading filled from ${response.data.source || "Virtual Scale"}. ` +
+          (response.data.stable
+            ? "Stable reading."
+            : "Reading is not stable; capture again before submitting.")
+      );
+      setMessage("Virtual Scale reading copied into Observed Weight. You can still edit it manually.");
+    } catch (error: any) {
+      console.error("Virtual Scale read error:", error);
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to read from Virtual Scale. You can enter the observed weight manually."
+      );
+    } finally {
+      setHardwareReadingLoading(false);
+    }
+  }
 
   async function submitWeighingPerformance() {
     if (inspectionLocked) {
@@ -3208,17 +3277,37 @@ export default function Tests() {
                   </p>
                 </div>
 
-                <FormInput
-                  label="Observed Weight"
-                  value={
-                    observedWeight
-                  }
-                  onChange={
-                    setObservedWeight
-                  }
-                  placeholder="e.g. 10.01"
-                  step="0.001"
-                />
+                <div>
+                  <FormInput
+                    label="Observed Weight"
+                    value={observedWeight}
+                    onChange={(value) => {
+                      setObservedWeight(value);
+                      setHardwareReadingNote("");
+                    }}
+                    placeholder="e.g. 10.01"
+                    step="0.001"
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={captureVirtualScaleReading}
+                      disabled={hardwareReadingLoading || submitting || inspectionLocked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <RefreshCw size={15} className={hardwareReadingLoading ? "animate-spin" : ""} />
+                      {hardwareReadingLoading ? "Reading scale…" : "Read from Virtual Scale"}
+                    </button>
+                    <span className="text-xs text-slate-500">
+                      Simulated reading; manual entry remains available.
+                    </span>
+                  </div>
+                  {hardwareReadingNote && (
+                    <p className="mt-2 text-xs font-medium text-slate-600">
+                      {hardwareReadingNote}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="border-t border-slate-100 pt-5">
